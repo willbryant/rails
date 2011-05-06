@@ -72,6 +72,14 @@ class RelationScopingTest < ActiveRecord::TestCase
     end
   end
 
+  def test_chained_select_concatenates
+    developer = Developer.select("id, name").select('id, salary').where("name = 'David'").first
+    assert_equal 80000, developer.salary
+    assert developer.has_attribute?(:id)
+    assert developer.has_attribute?(:name)
+    assert developer.has_attribute?(:salary)
+  end
+
   def test_scoped_count
     Developer.where("name = 'David'").scoping do
       assert_equal 1, Developer.count

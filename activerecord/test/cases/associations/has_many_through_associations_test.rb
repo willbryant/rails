@@ -386,6 +386,13 @@ class HasManyThroughAssociationsTest < ActiveRecord::TestCase
     assert_equal post_with_no_comments, posts(:authorless)
   end
 
+  def test_find_on_has_many_association_collection_with_select
+    assert people(:michael).posts.all(:select => "DISTINCT title").size > 1
+    Post.update_all(:title => "all the same")
+    assert people(:michael).posts.all(:select => "DISTINCT title").size == 1
+    assert people(:michael).posts.all(:select => "DISTINCT title", :conditions => "title = 'none'").size == 0
+  end
+
   def test_has_many_through_has_one_reflection
     assert_equal [comments(:eager_sti_on_associations_vs_comment)], authors(:david).very_special_comments
   end

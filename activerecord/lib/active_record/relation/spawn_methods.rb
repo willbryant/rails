@@ -117,10 +117,11 @@ module ActiveRecord
       finders = options.dup
       finders.delete_if { |key, value| value.nil? }
 
-      ([:joins, :select, :group, :order, :having, :limit, :offset, :from, :lock, :readonly] & finders.keys).each do |finder|
+      ([:joins, :group, :order, :having, :limit, :offset, :from, :lock, :readonly] & finders.keys).each do |finder|
         relation = relation.send(finder, finders[finder])
       end
 
+      relation = relation.except(:select).select(options[:select]) if options.has_key?(:select)
       relation = relation.where(finders[:conditions]) if options.has_key?(:conditions)
       relation = relation.includes(finders[:include]) if options.has_key?(:include)
       relation = relation.extending(finders[:extend]) if options.has_key?(:extend)
