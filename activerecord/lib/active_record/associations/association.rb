@@ -83,8 +83,9 @@ module ActiveRecord
         loaded!
       end
 
-      def scoped
-        target_scope.merge(association_scope)
+      def scoped(*args)
+        r = target_scope.merge(association_scope)
+        args.empty? ? r : r.scoped(*args)
       end
 
       # The scope for this association.
