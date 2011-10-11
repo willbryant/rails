@@ -252,6 +252,19 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
     end
   end
 
+  def test_scoped_without_arguments
+    clients = Firm.first.clients.all
+    assert !clients.empty?
+    assert_equal clients, Firm.first.clients.scoped.all
+  end
+
+  def test_scoped_with_arguments
+    clients = Firm.first.clients.all
+    assert !clients.empty?
+    assert_equal clients, Firm.first.clients.scoped(:conditions => "id IS NOT NULL").all
+    assert Firm.first.clients.scoped(:conditions => "id IS NULL").all.empty?
+  end
+
   def test_belongs_to_sanity
     c = Client.new
     assert_nil c.firm
