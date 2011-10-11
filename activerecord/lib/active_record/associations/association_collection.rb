@@ -35,8 +35,8 @@ module ActiveRecord
         end
       end
 
-      def scoped
-        with_scope(construct_scope) { @reflection.klass.scoped }
+      def scoped(*args)
+        with_scope(construct_scope) { @reflection.klass.scoped(*args) }
       end
 
       def find(*args)
