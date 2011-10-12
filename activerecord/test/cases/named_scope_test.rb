@@ -434,28 +434,6 @@ class NamedScopeTest < ActiveRecord::TestCase
     end
   end
 
-  def test_named_scopes_are_cached_on_associations
-    post = posts(:welcome)
-
-    assert_equal post.comments.containing_the_letter_e.object_id, post.comments.containing_the_letter_e.object_id
-
-    post.comments.containing_the_letter_e.all # force load
-    assert_no_queries { post.comments.containing_the_letter_e.all }
-  end
-
-  def test_named_scopes_with_arguments_are_cached_on_associations
-    post = posts(:welcome)
-
-    one = post.comments.limit_by(1).all
-    assert_equal 1, one.size
-
-    two = post.comments.limit_by(2).all
-    assert_equal 2, two.size
-
-    assert_no_queries { post.comments.limit_by(1).all }
-    assert_no_queries { post.comments.limit_by(2).all }
-  end
-
   def test_named_scopes_are_reset_on_association_reload
     post = posts(:welcome)
 
