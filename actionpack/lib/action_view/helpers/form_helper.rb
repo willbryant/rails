@@ -542,7 +542,8 @@ module ActionView
 
         builder = options[:builder] || ActionView::Base.default_form_builder
         builder = builder.new(object_name, object, self, options, block)
-        output  = capture(builder, &block)
+        output  = ActiveSupport::SafeBuffer.new
+        output  << capture(builder, &block)
         output.concat builder.hidden_field(:id) if output && options[:hidden_field_id] && !builder.emitted_hidden_id?
         output
       end
