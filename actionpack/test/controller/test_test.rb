@@ -116,6 +116,7 @@ XML
 
     def test_assigns
       @foo = "foo"
+      @foo_hash = {:foo => :bar}
       render :nothing => true
     end
 
@@ -245,6 +246,10 @@ XML
     assert_equal "foo", assigns("foo")
     assert_equal "foo", assigns[:foo]
     assert_equal "foo", assigns["foo"]
+
+    # but the assigned variable should not have its own keys stringified
+    expected_hash = { :foo => :bar }
+    assert_equal expected_hash, assigns(:foo_hash)
   end
 
   def test_assert_tag_tag
