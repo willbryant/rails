@@ -250,8 +250,7 @@ module ActionView
       #   simple_format("Look ma! A class!", :class => 'description')
       #   # => "<p class='description'>Look ma! A class!</p>"
       def simple_format(text, html_options={}, options={})
-        text = text ? text.to_str : ''
-        text = text.dup if text.frozen?
+        text = text ? text.to_str.dup : ''
         start_tag = tag('p', html_options, true)
         text.gsub!(/\r\n?/, "\n")                    # \r\n and \r -> \n
         text.gsub!(/\n\n+/, "</p>\n\n#{start_tag}")  # 2+ newline  -> paragraph
