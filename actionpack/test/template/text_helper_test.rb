@@ -52,6 +52,12 @@ class TextHelperTest < ActionView::TestCase
     assert !simple_format("<b> test with unsafe string </b><script>code!</script>", {}, :sanitize => false).html_safe?
   end
 
+  def test_simple_format_does_not_modify_source
+    str = "This string object should not be modified"
+    assert_equal "<p>This string object should not be modified</p>", simple_format(str)
+    assert_equal "This string object should not be modified", str
+  end
+
   def test_truncate_should_not_be_html_safe
     assert !truncate("Hello World!", :length => 12).html_safe?
   end
