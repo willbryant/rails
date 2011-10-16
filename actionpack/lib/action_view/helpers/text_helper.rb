@@ -257,8 +257,11 @@ module ActionView
       def simple_format(text, html_options={}, options={})
         text = '' if text.nil?
         start_tag = tag('p', html_options, true)
-        text = sanitize(text) unless options[:sanitize] == false
-        text = text.to_str
+        if options[:sanitize] == false
+          text = text.to_str.dup
+        else
+          text = sanitize(text).to_str
+        end
         text.gsub!(/\r\n?/, "\n")                    # \r\n and \r -> \n
         text.gsub!(/\n\n+/, "</p>\n\n#{start_tag}")  # 2+ newline  -> paragraph
         text.gsub!(/([^\n]\n)(?=[^\n])/, '\1<br />') # 1 newline   -> br
