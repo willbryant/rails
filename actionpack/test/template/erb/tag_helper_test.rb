@@ -29,5 +29,10 @@ module ERBTest
       expected_output = "<fieldset><legend>foo</legend>hello</fieldset>"
       assert_equal expected_output, render_content("field_set_tag('foo')", "<%= 'hello' %>")
     end
+
+    test "percent equals works with fields_for blocks" do
+      expected_output = "hello"
+      assert_equal expected_output, render_content("fields_for(:foo)", "<%= 'hello' %>")
+    end
   end
 end
