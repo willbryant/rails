@@ -38,12 +38,6 @@ module ActiveRecord
     end
   end
 
-  class HasOneThroughCantAssociateThroughCollection < ActiveRecordError #:nodoc:
-    def initialize(owner_class_name, reflection, through_reflection)
-      super("Cannot have a has_one :through association '#{owner_class_name}##{reflection.name}' where the :through association '#{owner_class_name}##{through_reflection.name}' is a collection. Specify a has_one or belongs_to association in the :through option instead.")
-    end
-  end
-
   class HasManyThroughSourceAssociationNotFoundError < ActiveRecordError #:nodoc:
     def initialize(reflection)
       through_reflection      = reflection.through_reflection
@@ -1420,17 +1414,17 @@ module ActiveRecord
       # join table with a migration such as this:
       #
       #   class CreateDevelopersProjectsJoinTable < ActiveRecord::Migration
-      #     def self.up
+      #     def change
       #       create_table :developers_projects, :id => false do |t|
       #         t.integer :developer_id
       #         t.integer :project_id
       #       end
       #     end
-      #
-      #     def self.down
-      #       drop_table :developers_projects
-      #     end
       #   end
+      #
+      # It's also a good idea to add indexes to each of those columns to speed up the joins process.
+      # However, in MySQL it is advised to add a compound index for both of the columns as MySQL only
+      # uses one index per table during the lookup.
       #
       # Adds the following methods for retrieval and query:
       #

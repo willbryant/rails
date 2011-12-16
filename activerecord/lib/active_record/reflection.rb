@@ -445,7 +445,7 @@ module ActiveRecord
       # of relevant reflections, plus any :source_type or polymorphic :as constraints.
       def conditions
         @conditions ||= begin
-          conditions = source_reflection.conditions
+          conditions = source_reflection.conditions.map { |c| c.dup }
 
           # Add to it the conditions from this reflection if necessary.
           conditions.first << options[:conditions] if options[:conditions]
@@ -523,10 +523,6 @@ module ActiveRecord
 
         if source_reflection.options[:polymorphic] && options[:source_type].nil?
           raise HasManyThroughAssociationPolymorphicSourceError.new(active_record.name, self, source_reflection)
-        end
-
-        if macro == :has_one && through_reflection.collection?
-          raise HasOneThroughCantAssociateThroughCollection.new(active_record.name, self, through_reflection)
         end
 
         check_validity_of_inverse!

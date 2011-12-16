@@ -190,10 +190,11 @@ module Rails
 
       def turn_gemfile_entry
         unless RUBY_VERSION < "1.9.2" || options[:skip_test_unit]
+          version = RUBY_VERSION >= "1.9.3" ? "'~> 0.8.3'" : "'0.8.2'"
           <<-GEMFILE.strip_heredoc
             group :test do
               # Pretty printed test output
-              gem 'turn', :require => false
+              gem 'turn', #{version}, :require => false
             end
           GEMFILE
         end
@@ -208,7 +209,7 @@ module Rails
           # Gems used only for assets and not required
           # in production environments by default.
           group :assets do
-            gem 'sass-rails', #{options.dev? || options.edge? ? "  :git => 'git://github.com/rails/sass-rails.git', :branch => '3-1-stable'" : "  '~> 3.1.4'"}
+            gem 'sass-rails', #{options.dev? || options.edge? ? "  :git => 'git://github.com/rails/sass-rails.git', :branch => '3-1-stable'" : "  '~> 3.1.5.rc.2'"}
             gem 'coffee-rails', #{options.dev? || options.edge? ? ":git => 'git://github.com/rails/coffee-rails.git', :branch => '3-1-stable'" : "'~> 3.1.1'"}
             gem 'uglifier', '>= 1.0.3'
           end

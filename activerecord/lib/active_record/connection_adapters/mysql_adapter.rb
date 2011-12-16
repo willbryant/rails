@@ -756,9 +756,9 @@ module ActiveRecord
       # Returns a table's primary key and belonging sequence.
       def pk_and_sequence_for(table) #:nodoc:
         keys = []
-        result = execute("describe #{quote_table_name(table)}", 'SCHEMA')
+        result = execute("SHOW INDEX FROM #{quote_table_name(table)} WHERE Key_name = 'PRIMARY'", 'SCHEMA')
         result.each_hash do |h|
-          keys << h["Field"]if h["Key"] == "PRI"
+          keys << h["Column_name"]
         end
         result.free
         keys.length == 1 ? [keys.first, nil] : nil
