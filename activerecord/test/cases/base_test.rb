@@ -1288,6 +1288,13 @@ class BasicsTest < ActiveRecord::TestCase
     assert_equal(myobj, topic.content)
   end
 
+  def test_serialized_nil_attribute_is_null_in_database
+    myobj = nil
+    topic = Topic.create("content" => myobj).reload
+    assert_equal(myobj, topic.content)
+    assert Topic.where("content IS NULL").exists?(topic.id)
+  end
+
   def test_nil_serialized_attribute_with_class_constraint
     topic = Topic.new
     assert_nil topic.content
