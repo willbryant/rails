@@ -13,7 +13,8 @@ module ActiveRecord
         # Defines the primary key field -- can be overridden in subclasses. Overwriting will negate any effect of the
         # primary_key_prefix_type setting, though.
         def primary_key
-          @primary_key ||= reset_primary_key
+          @primary_key = reset_primary_key unless defined? @primary_key
+          @primary_key
         end
 
         # Returns a quoted version of the primary key name, used to construct SQL statements.
@@ -52,6 +53,8 @@ module ActiveRecord
         def primary_key=(value)
           @quoted_primary_key = nil
           @primary_key = value
+
+          connection_pool.primary_keys[table_name] = @primary_key if connected?
         end
 
         # Sets the name of the primary key column to use to the given value,

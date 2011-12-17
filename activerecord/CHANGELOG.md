@@ -1,3 +1,30 @@
+## Rails 3.1.4 (unreleased) ##
+
+*   Fix a custom primary key regression *GH 3987*
+
+    *Jon Leighton*
+
+*   Perf fix (second try): don't load records for `has many :dependent =>
+    :delete_all` *GH 3672*
+
+    *Jon Leighton*
+
+*   Fix accessing `proxy_association` method from an association extension
+    where the calls are chained. *GH #3890*
+
+    (E.g. `post.comments.where(bla).my_proxy_method`)
+
+    *Jon Leighton*
+
+*   Perf fix: MySQL primary key lookup was still slow for very large
+    tables. *GH 3678*
+
+    *Kenny J*
+
+*   Perf fix: If a table has no primary key, don't repeatedly ask the database for it.
+
+    *Julius de Bruijn*
+
 ## Rails 3.1.3 (unreleased) ##
 
 *   Perf fix: If we're deleting all records in an association, don't add a IN(..) clause
