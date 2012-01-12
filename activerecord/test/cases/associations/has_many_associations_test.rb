@@ -701,10 +701,13 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
   end
 
   def test_find_or_initialize
-    the_client = companies(:first_firm).clients.find_or_initialize_by_name("Yet another client")
-    assert_equal companies(:first_firm).id, the_client.firm_id
-    assert_equal "Yet another client", the_client.name
-    assert !the_client.persisted?
+    company = companies(:first_firm)
+    assert_queries(1) do
+      the_client = company.clients.find_or_initialize_by_name("Yet another client")
+      assert_equal company.id, the_client.firm_id
+      assert_equal "Yet another client", the_client.name
+      assert !the_client.persisted?
+    end
   end
 
   def test_find_or_create_updates_size
