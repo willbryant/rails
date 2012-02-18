@@ -72,7 +72,7 @@ module AbstractController
             hidden_actions.to_a
 
           # Clear out AS callback method pollution
-          methods.reject { |method| method =~ /_one_time_conditions/ }
+          methods.reject { |method| method =~ /_one_time_conditions/ || method =~ /_conditional_callback_around/ }
         end
       end
 
