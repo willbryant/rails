@@ -360,6 +360,19 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
     assert_equal 2, Firm.find(4).clients_using_sql.count
   end
 
+  def test_scoped_without_arguments
+    clients = Firm.first.clients.all
+    assert !clients.empty?
+    assert_equal clients, Firm.first.clients.scoped.all
+  end
+
+  def test_scoped_with_arguments
+    clients = Firm.first.clients.all
+    assert !clients.empty?
+    assert_equal clients, Firm.first.clients.scoped(:conditions => "id IS NOT NULL").all
+    assert Firm.first.clients.scoped(:conditions => "id IS NULL").all.empty?
+  end
+
   def test_belongs_to_sanity
     c = Client.new
     assert_nil c.firm
@@ -688,10 +701,13 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
   end
 
   def test_find_or_initialize
-    the_client = companies(:first_firm).clients.find_or_initialize_by_name("Yet another client")
-    assert_equal companies(:first_firm).id, the_client.firm_id
-    assert_equal "Yet another client", the_client.name
-    assert !the_client.persisted?
+    company = companies(:first_firm)
+    assert_queries(1) do
+      the_client = company.clients.find_or_initialize_by_name("Yet another client")
+      assert_equal company.id, the_client.firm_id
+      assert_equal "Yet another client", the_client.name
+      assert !the_client.persisted?
+    end
   end
 
   def test_find_or_create_updates_size

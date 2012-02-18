@@ -19,6 +19,7 @@ module ActiveRecord
       def test_nil_is_ok
         coder = YAMLColumn.new
         assert_nil coder.load "--- "
+        assert_nil coder.load nil
       end
 
       def test_returns_new_with_different_class

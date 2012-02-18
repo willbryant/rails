@@ -120,6 +120,7 @@ XML
 
     def test_assigns
       @foo = "foo"
+      @foo_hash = {:foo => :bar}
       render :nothing => true
     end
 
@@ -265,6 +266,10 @@ XML
     assert_equal "foo", assigns("foo")
     assert_equal "foo", assigns[:foo]
     assert_equal "foo", assigns["foo"]
+
+    # but the assigned variable should not have its own keys stringified
+    expected_hash = { :foo => :bar }
+    assert_equal expected_hash, assigns(:foo_hash)
   end
 
   def test_view_assigns
@@ -546,8 +551,10 @@ XML
   end
 
   def test_id_converted_to_string
-    get :test_params, :id => 20, :foo => Object.new
+    get :test_params, :id => 20, :foo => 'bar'
     assert_kind_of String, @request.path_parameters['id']
+    parsed_params = eval(@response.body)
+    assert_equal '20', parsed_params['id']
   end
 
   def test_array_path_parameter_handled_properly
