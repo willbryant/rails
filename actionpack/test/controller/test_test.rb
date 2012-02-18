@@ -551,8 +551,10 @@ XML
   end
 
   def test_id_converted_to_string
-    get :test_params, :id => 20, :foo => Object.new
+    get :test_params, :id => 20, :foo => 'bar'
     assert_kind_of String, @request.path_parameters['id']
+    parsed_params = eval(@response.body)
+    assert_equal '20', parsed_params['id']
   end
 
   def test_array_path_parameter_handled_properly
