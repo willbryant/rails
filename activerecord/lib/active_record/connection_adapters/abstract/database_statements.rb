@@ -173,7 +173,12 @@ module ActiveRecord
         if options.has_key?(:remember_record_state)
           remember_record_state = options[:remember_record_state]
         else
-          remember_record_state = true
+          # Child transactions where parents have run with
+          # +remember_record_state+ of false will end up with
+          # @_current_transaction_records.blank == [nil, nil]. In that case
+          # this condition will set the child's +remember_record_state+
+          # also to false
+          remember_record_state = (@_current_transaction_records.blank? || !@_current_transaction_records.last.nil?)
         end
         requires_new = options[:requires_new] || !last_transaction_joinable
 
