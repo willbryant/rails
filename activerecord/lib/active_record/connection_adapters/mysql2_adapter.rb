@@ -1,4 +1,5 @@
 # encoding: utf-8
+require 'arel/visitors/bind_visitor'
 
 gem 'mysql2', '~> 0.3.10'
 require 'mysql2'
@@ -129,8 +130,12 @@ module ActiveRecord
         configure_connection
       end
 
+      class BindSubstitution < Arel::Visitors::MySQL # :nodoc:
+        include Arel::Visitors::BindVisitor
+      end
+
       def self.visitor_for(pool) # :nodoc:
-        Arel::Visitors::MySQL.new(pool)
+        BindSubstitution.new pool
       end
 
       def adapter_name
@@ -189,7 +194,7 @@ module ActiveRecord
       end
 
       def substitute_at(column, index)
-        Arel.sql "\0"
+        Arel::Nodes::BindParam.new "\0"
       end
 
       # REFERENTIAL INTEGRITY ====================================
@@ -297,17 +302,11 @@ module ActiveRecord
       alias :create :insert_sql
 
       def exec_insert(sql, name, binds)
-        binds = binds.dup
-
-        # Pretend to support bind parameters
-        execute sql.gsub("\0") { quote(*binds.shift.reverse) }, name
+        execute to_sql(sql, binds), name
       end
 
       def exec_delete(sql, name, binds)
-        binds = binds.dup
-
-        # Pretend to support bind parameters
-        execute sql.gsub("\0") { quote(*binds.shift.reverse) }, name
+        execute to_sql(sql, binds), name
         @connection.affected_rows
       end
       alias :exec_update :exec_delete
@@ -576,7 +575,7 @@ module ActiveRecord
         create_table = result.first[1]
 
         if create_table.to_s =~ /PRIMARY KEY\s+\((.+)\)/
-          keys = $1.split(",").map { |key| key.gsub(/`/, "") }
+          keys = $1.split(",").map { |key| key.gsub(/[`"]/, "") }
           keys.length == 1 ? [keys.first, nil] : nil
         else
           nil
@@ -678,8 +677,7 @@ module ActiveRecord
         # Returns an array of record hashes with the column names as keys and
         # column values as values.
         def select(sql, name = nil, binds = [])
-          binds = binds.dup
-          exec_query(sql.gsub("\0") { quote(*binds.shift.reverse) }, name).to_a
+          exec_query(sql, name).to_a
         end
 
         def exec_query(sql, name = 'SQL', binds = [])

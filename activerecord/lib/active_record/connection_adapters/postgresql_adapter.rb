@@ -2,6 +2,7 @@ require 'active_record/connection_adapters/abstract_adapter'
 require 'active_support/core_ext/kernel/requires'
 require 'active_support/core_ext/object/blank'
 require 'active_record/connection_adapters/statement_pool'
+require 'arel/visitors/bind_visitor'
 
 # Make sure we're using pg high enough for PGResult#values
 gem 'pg', '~> 0.11'
@@ -300,9 +301,16 @@ module ActiveRecord
         end
       end
 
+      class BindSubstitution < Arel::Visitors::PostgreSQL # :nodoc:
+        include Arel::Visitors::BindVisitor
+      end
+
       # Initializes and connects a PostgreSQL adapter.
       def initialize(connection, logger, connection_parameters, config)
         super(connection, logger)
+
+        connection_parameters.delete :prepared_statements
+
         @connection_parameters, @config = connection_parameters, config
 
         # @local_tz is initialized as nil to avoid warnings when connect tries to use it
@@ -321,7 +329,12 @@ module ActiveRecord
       end
 
       def self.visitor_for(pool) # :nodoc:
-        Arel::Visitors::PostgreSQL.new(pool)
+        config = pool.spec.config
+        if config.fetch(:prepared_statements) { true }
+          Arel::Visitors::PostgreSQL.new pool
+        else
+          BindSubstitution.new pool
+        end
       end
 
       # Clears the prepared statements cache.
@@ -594,7 +607,7 @@ module ActiveRecord
       end
 
       def substitute_at(column, index)
-        Arel.sql("$#{index + 1}")
+        Arel::Nodes::BindParam.new "$#{index + 1}"
       end
 
       def exec_query(sql, name = 'SQL', binds = [])
@@ -873,18 +886,45 @@ module ActiveRecord
       def pk_and_sequence_for(table) #:nodoc:
         # First try looking for a sequence with a dependency on the
         # given table's primary key.
-        result = exec_query(<<-end_sql, 'SCHEMA').rows.first
+        result = query(<<-end_sql, 'PK and serial sequence')[0]
           SELECT attr.attname, seq.relname
-          FROM pg_class seq
-          INNER JOIN pg_depend dep ON seq.oid = dep.objid
-          INNER JOIN pg_attribute attr ON attr.attrelid = dep.refobjid AND attr.attnum = dep.refobjsubid
-          INNER JOIN pg_constraint cons ON attr.attrelid = cons.conrelid AND attr.attnum = cons.conkey[1]
-          WHERE seq.relkind  = 'S'
-            AND cons.contype = 'p'
-            AND dep.refobjid = '#{quote_table_name(table)}'::regclass
+          FROM pg_class      seq,
+               pg_attribute  attr,
+               pg_depend     dep,
+               pg_namespace  name,
+               pg_constraint cons
+          WHERE seq.oid           = dep.objid
+            AND seq.relkind       = 'S'
+            AND attr.attrelid     = dep.refobjid
+            AND attr.attnum       = dep.refobjsubid
+            AND attr.attrelid     = cons.conrelid
+            AND attr.attnum       = cons.conkey[1]
+            AND cons.contype      = 'p'
+            AND dep.refobjid      = '#{quote_table_name(table)}'::regclass
         end_sql
 
-        # [primary_key, sequence]
+        if result.nil? or result.empty?
+          # If that fails, try parsing the primary key's default value.
+          # Support the 7.x and 8.0 nextval('foo'::text) as well as
+          # the 8.1+ nextval('foo'::regclass).
+          result = query(<<-end_sql, 'PK and custom sequence')[0]
+            SELECT attr.attname,
+              CASE
+                WHEN split_part(def.adsrc, '''', 2) ~ '.' THEN
+                  substr(split_part(def.adsrc, '''', 2),
+                         strpos(split_part(def.adsrc, '''', 2), '.')+1)
+                ELSE split_part(def.adsrc, '''', 2)
+              END
+            FROM pg_class       t
+            JOIN pg_attribute   attr ON (t.oid = attrelid)
+            JOIN pg_attrdef     def  ON (adrelid = attrelid AND adnum = attnum)
+            JOIN pg_constraint  cons ON (conrelid = adrelid AND adnum = conkey[1])
+            WHERE t.oid = '#{quote_table_name(table)}'::regclass
+              AND cons.contype = 'p'
+              AND def.adsrc ~* 'nextval'
+          end_sql
+        end
+
         [result.first, result.last]
       rescue
         nil
