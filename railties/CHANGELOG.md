@@ -1,3 +1,11 @@
+## Rails 3.1.6 (Jun 12, 2012)
+
+*   No changes.
+
+## Rails 3.1.5 (May 31, 2012) ##
+
+*   No changes.
+
 ## Rails 3.1.4 (unreleased) ##
 
 *   Setting config.force_ssl also marks the session cookie as secure.

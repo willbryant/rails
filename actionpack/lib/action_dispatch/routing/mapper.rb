@@ -35,6 +35,8 @@ module ActionDispatch
           }
 
           return true
+        ensure
+          req.reset_parameters
         end
 
         def call(env)
@@ -107,7 +109,7 @@ module ActionDispatch
 
             # Add a constraint for wildcard route to make it non-greedy and match the
             # optional format part of the route by default
-            if path.match(/\*([^\/]+)$/) && @options[:format] != false
+            if path.match(%r{\*([^/\)]+)\)?$}) && @options[:format] != false
               @options.reverse_merge!(:"#{$1}" => /.+?/)
             end
 
@@ -331,7 +333,7 @@ module ActionDispatch
         #   +call+ or a string representing a controller's action.
         #
         #      match 'path', :to => 'controller#action'
-        #      match 'path', :to => lambda { [200, {}, "Success!"] }
+        #      match 'path', :to => lambda { |env| [200, {}, "Success!"] }
         #      match 'path', :to => RackApp
         #
         # [:on]

@@ -616,9 +616,13 @@ module NestedAttributesOnACollectionAssociationTests
   end
 
   def test_should_automatically_build_new_associated_models_for_each_entry_in_a_hash_where_the_id_is_missing
+    attributes = ActiveSupport::OrderedHash.new
+    attributes['foo'] = { :name => 'Grace OMalley' }
+    attributes['bar'] = { :name => 'Privateers Greed' }
+
     @pirate.send(@association_name).destroy_all
     @pirate.reload.attributes = {
-      association_getter => { 'foo' => { :name => 'Grace OMalley' }, 'bar' => { :name => 'Privateers Greed' }}
+      association_getter => attributes
     }
 
     assert !@pirate.send(@association_name).first.persisted?
@@ -864,7 +868,7 @@ class TestNestedAttributesWithNonStandardPrimaryKeys < ActiveRecord::TestCase
 
   def test_should_update_existing_records_with_non_standard_primary_key
     @owner.update_attributes(@params)
-    assert_equal ['Foo', 'Bar'], @owner.pets.map(&:name)
+    assert_equal %w(Bar Foo), @owner.pets.map(&:name).sort
   end
 
   def test_attr_accessor_of_child_should_be_value_provided_during_update_attributes

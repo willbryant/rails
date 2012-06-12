@@ -53,8 +53,8 @@ class FinderTest < ActiveRecord::TestCase
   def test_exists_with_nil_arg
     assert !Topic.exists?(nil)
     assert Topic.exists?
-    assert !Topic.first.replies.exists?(nil)
-    assert Topic.first.replies.exists?
+    assert !Topic.order(:id).first.replies.exists?(nil)
+    assert Topic.order(:id).first.replies.exists?
   end
 
   def test_does_not_exist_with_empty_table_and_no_args_given
@@ -1170,6 +1170,10 @@ class FinderTest < ActiveRecord::TestCase
     rescue ActiveRecord::RecordNotFound => e
       assert_equal 'Couldn\'t find Toy with name=Hello World!', e.message
     end
+  end
+
+  def test_finder_with_offset_string
+    assert_nothing_raised(ActiveRecord::StatementInvalid) { Topic.find(:all, :offset => "3") }
   end
 
   protected

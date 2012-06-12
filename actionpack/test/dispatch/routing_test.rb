@@ -2517,3 +2517,90 @@ class TestHttpMethods < ActionDispatch::IntegrationTest
     end
   end
 end
+
+class TestRedirectInterpolation < ActionDispatch::IntegrationTest
+  Routes = ActionDispatch::Routing::RouteSet.new.tap do |app|
+    app.draw do
+      ok = lambda { |env| [200, { 'Content-Type' => 'text/plain' }, []] }
+
+      get "/foo/:id" => redirect("/foo/bar/%{id}")
+      get "/bar/:id" => redirect(:path => "/foo/bar/%{id}")
+      get "/foo/bar/:id" => ok
+    end
+  end
+
+  def app; Routes end
+
+  test "redirect escapes interpolated parameters with redirect proc" do
+    get "/foo/1%3E"
+    verify_redirect "http://www.example.com/foo/bar/1%3E"
+  end
+
+  test "redirect escapes interpolated parameters with options proc" do
+    get "/bar/1%3E"
+    verify_redirect "http://www.example.com/foo/bar/1%3E"
+  end
+
+private
+  def verify_redirect(url, status=301)
+    assert_equal status, @response.status
+    assert_equal url, @response.headers['Location']
+    assert_equal expected_redirect_body(url), @response.body
+  end
+
+  def expected_redirect_body(url)
+    %(<html><body>You are being <a href="#{ERB::Util.h(url)}">redirected</a>.</body></html>)
+  end
+end
+
+class TestConstraintsAccessingParameters < ActionDispatch::IntegrationTest
+  Routes = ActionDispatch::Routing::RouteSet.new.tap do |app|
+    app.draw do
+      ok = lambda { |env| [200, { 'Content-Type' => 'text/plain' }, []] }
+
+      get "/:foo" => ok, :constraints => lambda { |r| r.params[:foo] == 'foo' }
+      get "/:bar" => ok
+    end
+  end
+
+  def app; Routes end
+
+  test "parameters are reset between constraint checks" do
+    get "/bar"
+    assert_equal nil, @request.params[:foo]
+    assert_equal "bar", @request.params[:bar]
+  end
+end
+
+class TestNamedRouteUrlHelpers < ActionDispatch::IntegrationTest
+  class CategoriesController < ActionController::Base
+    def show
+      render :text => "categories#show"
+    end
+  end
+
+  class ProductsController < ActionController::Base
+    def show
+      render :text => "products#show"
+    end
+  end
+
+  Routes = ActionDispatch::Routing::RouteSet.new.tap do |app|
+    app.draw do
+      scope :module => "test_named_route_url_helpers" do
+        get "/categories/:id" => 'categories#show', :as => :category
+        get "/products/:id" => 'products#show', :as => :product
+      end
+    end
+  end
+
+  def app; Routes end
+
+  include Routes.url_helpers
+
+  test "url helpers do not ignore nil parameters" do
+    get "/categories/1"
+    assert_response :success
+    assert_raises(ActionController::RoutingError) { product_path(nil) }
+  end
+end

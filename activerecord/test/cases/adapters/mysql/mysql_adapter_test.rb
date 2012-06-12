@@ -52,6 +52,16 @@ module ActiveRecord
         assert_equal str, value
       end
 
+      def test_tables_quoting
+        begin
+          @conn.tables(nil, "foo-bar")
+          flunk
+        rescue => e
+          # assertion for *quoted* database properly
+          assert_match(/database 'foo-bar'/, e.inspect)
+        end
+      end
+
       private
       def insert(ctx, data)
         binds   = data.map { |name, value|

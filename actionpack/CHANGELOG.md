@@ -1,4 +1,28 @@
+## Rails 3.1.6 (Jun 12, 2012)
+
+*   nil is removed from array parameter values
+
+    CVE-2012-2694
+
+## Rails 3.1.5 (May 31, 2012) ##
+
+*   Detect optional glob params when adding non-greedy regexp - closes #4817.
+
+*   Strip null bytes from Location header
+
+*   Return the same session data object when setting session id
+
+*   Avoid inspecting the whole route set, closes #1525
+
+*   Strip [nil] from parameters hash.  Thanks to Ben Murphy for reporting this!
+    CVE-2012-2660
+
 ## Rails 3.1.4 (unreleased) ##
+
+*   :subdomain can now be specified with a value of false in url_for, 
+    allowing for subdomain(s) removal from the host during link generation. GH #4083
+
+    *Arun Agrawal*
 
 *   Skip assets group in Gemfile and all assets configurations options
     when the application is generated with --skip-sprockets option.

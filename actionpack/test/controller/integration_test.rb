@@ -296,8 +296,12 @@ class IntegrationProcessTest < ActionDispatch::IntegrationTest
       self.cookies['cookie_1'] = "sugar"
       self.cookies['cookie_2'] = "oatmeal"
       get '/cookie_monster'
-      assert_equal "cookie_1=; path=/\ncookie_3=chocolate; path=/", headers["Set-Cookie"]
-      assert_equal({"cookie_1"=>"", "cookie_2"=>"oatmeal", "cookie_3"=>"chocolate"}, cookies.to_hash)
+      _headers = headers["Set-Cookie"].split("\n")
+      assert _headers.include?("cookie_1=; path=/")
+      assert _headers.include?("cookie_3=chocolate; path=/")
+      assert_equal cookies.to_hash["cookie_1"], ""
+      assert_equal cookies.to_hash["cookie_2"], "oatmeal"
+      assert_equal cookies.to_hash["cookie_3"], "chocolate"
     end
   end
 
@@ -527,5 +531,85 @@ class ApplicationIntegrationTest < ActionDispatch::IntegrationTest
     old_env = env.dup
     get '/foo', nil, env
     assert_equal old_env, env
+  end
+end
+
+class UrlOptionsIntegrationTest < ActionDispatch::IntegrationTest
+  class FooController < ActionController::Base
+    def index
+      render :text => "foo#index"
+    end
+
+    def show
+      render :text => "foo#show"
+    end
+
+    def edit
+      render :text => "foo#show"
+    end
+  end
+
+  class BarController < ActionController::Base
+    def default_url_options
+      { :host => "bar.com" }
+    end
+
+    def index
+      render :text => "foo#index"
+    end
+  end
+
+  def self.routes
+    @routes ||= ActionDispatch::Routing::RouteSet.new
+  end
+
+  def self.call(env)
+    routes.call(env)
+  end
+
+  def app
+    self.class
+  end
+
+  routes.draw do
+    default_url_options :host => "foo.com"
+
+    scope :module => "url_options_integration_test" do
+      get "/foo" => "foo#index", :as => :foos
+      get "/foo/:id" => "foo#show", :as => :foo
+      get "/foo/:id/edit" => "foo#edit", :as => :edit_foo
+      get "/bar" => "bar#index", :as => :bars
+    end
+  end
+
+  test "session uses default url options from routes" do
+    assert_equal "http://foo.com/foo", foos_url
+  end
+
+  test "current host overrides default url options from routes" do
+    get "/foo"
+    assert_response :success
+    assert_equal "http://www.example.com/foo", foos_url
+  end
+
+  test "controller can override default url options from request" do
+    get "/bar"
+    assert_response :success
+    assert_equal "http://bar.com/foo", foos_url
+  end
+
+  test "test can override default url options" do
+    default_url_options[:host] = "foobar.com"
+    assert_equal "http://foobar.com/foo", foos_url
+
+    get "/bar"
+    assert_response :success
+    assert_equal "http://foobar.com/foo", foos_url
+  end
+
+  test "current request path parameters are recalled" do
+    get "/foo/1"
+    assert_response :success
+    assert_equal "/foo/1/edit", url_for(:action => 'edit', :only_path => true)
   end
 end
