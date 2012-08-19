@@ -1,4 +1,6 @@
 require 'action_dispatch/http/request'
+require 'active_support/core_ext/uri'
+require 'rack/utils'
 
 module ActionDispatch
   module Routing
@@ -46,8 +48,17 @@ module ActionDispatch
           :params   => request.query_parameters
         }.merge options
 
+        if !params.empty? && url_options[:path].match(/%\{\w*\}/)
+          url_options[:path] = (url_options[:path] % escape_path(params))
+        end
+
         ActionDispatch::Http::URL.url_for url_options
       end
+
+      private
+        def escape_path(params)
+          Hash[params.map{ |k,v| [k, URI.parser.escape(v)] }]
+        end
     end
 
     module Redirection
@@ -93,7 +104,7 @@ module ActionDispatch
         path = args.shift
 
         block = lambda { |params, request|
-          (params.empty? || !path.match(/%\{\w*\}/)) ? path : (path % params)
+          (params.empty? || !path.match(/%\{\w*\}/)) ? path : (path % escape(params))
         } if String === path
 
         block = path if path.respond_to? :call
@@ -102,13 +113,19 @@ module ActionDispatch
         if block && block.respond_to?(:arity) && block.arity < 2
           msg = "redirect blocks with arity of #{block.arity} are deprecated. Your block must take 2 parameters: the environment, and a request object"
           ActiveSupport::Deprecation.warn msg
-          block = lambda { |params, _| block.call(params) }
+          deprecated_block = block
+          block = lambda { |params, _| deprecated_block.call(params) }
         end
 
         raise ArgumentError, "redirection argument not supported" unless block
 
         Redirect.new status, block
       end
+
+      private
+        def escape(params)
+          Hash[params.map{ |k,v| [k, Rack::Utils.escape(v)] }]
+        end
     end
   end
 end

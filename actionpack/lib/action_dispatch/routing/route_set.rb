@@ -9,6 +9,12 @@ require 'action_controller/metal/exceptions'
 module ActionDispatch
   module Routing
     class RouteSet #:nodoc:
+      # Since the router holds references to many parts of the system
+      # like engines, controllers and the application itself, inspecting
+      # the route set can actually be really slow, therefore we default
+      # alias inspect to to_s.
+      alias inspect to_s
+
       PARAMETERS_KEY = 'action_dispatch.request.path_parameters'
 
       class Dispatcher #:nodoc:
@@ -172,7 +178,7 @@ module ActionDispatch
                 options = args.extract_options!
                 result = #{options.inspect}
 
-                if args.any?
+                if args.size > 0
                   result[:_positional_args] = args
                   result[:_positional_keys] = #{route.segment_keys.inspect}
                 end
@@ -267,8 +273,7 @@ module ActionDispatch
       def eval_block(block)
         if block.arity == 1
           raise "You are using the old router DSL which has been removed in Rails 3.1. " <<
-            "Please check how to update your routes file at: http://www.engineyard.com/blog/2010/the-lowdown-on-routes-in-rails-3/ " <<
-            "or add the rails_legacy_mapper gem to your Gemfile"
+            "Please check how to update your routes file at: http://www.engineyard.com/blog/2010/the-lowdown-on-routes-in-rails-3/"
         end
         mapper = Mapper.new(self)
         if default_scope

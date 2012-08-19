@@ -337,7 +337,7 @@ h4. Configuring Action Dispatch
 
 h4. Configuring Action View
 
-There are only a few configuration options for Action View, starting with four on +ActionView::Base+:
+There are only a few configuration options for Action View, starting with three on +ActionView::Base+:
 
 * +config.action_view.field_error_proc+ provides an HTML generator for displaying errors that come from Active Record. The default is
 
@@ -345,9 +345,7 @@ There are only a few configuration options for Action View, starting with four o
 Proc.new { |html_tag, instance| %Q(<div class="field_with_errors">#{html_tag}</div>).html_safe }
 </ruby>
 
-* +config.action_view.default_form_builder+ tells Rails which form builder to use by default. The default is +ActionView::Helpers::FormBuilder+.
-
-* +config.action_view.logger+ accepts a logger conforming to the interface of Log4r or the default Ruby Logger class, which is then used to log information from Action Mailer. Set to +nil+ to disable logging.
+* +config.action_view.default_form_builder+ tells Rails which form builder to use by default. The default is +ActionView::Helpers::FormBuilder+. If you want your form builder class to be loaded after initialization (so it's reloaded on each request in development), you can pass it as a +String+
 
 * +config.action_view.erb_trim_mode+ gives the trim mode to be used by ERB. It defaults to +'-'+. See the "ERB documentation":http://www.ruby-doc.org/stdlib/libdoc/erb/rdoc/ for more information.
 
@@ -376,6 +374,8 @@ And can reference in the view with the following code:
 </ruby>
 
 * +config.action_view.cache_asset_ids+ With the cache enabled, the asset tag helper methods will make fewer expensive file system calls (the default implementation checks the file system timestamp). However this prevents you from modifying any asset files while the server is running.
+
+* +config.action_view.embed_authenticity_token_in_remote_forms+ This is by default set to true. If you set it to false, authenticity_token will not be added to forms with +:remote => true+ by default. You can force +authenticity_token+ to be added to such remote form by passing +:authenticity_token => true+ option.
 
 h4. Configuring Action Mailer
 
@@ -483,7 +483,7 @@ Rails has 5 initialization events which can be hooked into (listed in the order 
 
 * +after_initialize+: Run directly after the initialization of the application, but before the application initializers are run.
 
-To define an event for these hooks, use the block syntax within a +Rails::Aplication+, +Rails::Railtie+ or +Rails::Engine+ subclass:
+To define an event for these hooks, use the block syntax within a +Rails::Application+, +Rails::Railtie+ or +Rails::Engine+ subclass:
 
 <ruby>
 module YourApp

@@ -94,7 +94,7 @@ client = Client.find(10)
 The SQL equivalent of the above is:
 
 <sql>
-SELECT * FROM clients WHERE (clients.id = 10)
+SELECT * FROM clients WHERE (clients.id = 10) LIMIT 1
 </sql>
 
 <tt>Model.find(primary_key)</tt> will raise an +ActiveRecord::RecordNotFound+ exception if no matching record is found.
@@ -1108,6 +1108,8 @@ to your +Client+ model. If you try to create a new +Client+ without passing an +
 Client.where(:first_name => 'Andy').first_or_create!(:locked => false)
 # => ActiveRecord::RecordInvalid: Validation failed: Orders count can't be blank
 </ruby>
+
+As with +first_or_create+ there is a +find_or_create_by!+ method but the +first_or_create!+ method is preferred for clarity.
 
 h4. +first_or_initialize+
 

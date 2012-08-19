@@ -2,7 +2,7 @@ require 'active_support/core_ext/object/inclusion'
 require 'active_record'
 
 db_namespace = namespace :db do
-  task :load_config => :rails_env do
+  task :load_config do
     ActiveRecord::Base.configurations = Rails.application.config.database_configuration
     ActiveRecord::Migrator.migrations_paths = Rails.application.paths['db/migrate'].to_a
 
@@ -36,7 +36,7 @@ db_namespace = namespace :db do
   end
 
   desc 'Create the database from config/database.yml for the current Rails.env (use db:create:all to create all dbs in the config)'
-  task :create => :load_config do
+  task :create => [:load_config, :rails_env] do
     configs_for_environment.each { |config| create_database(config) }
     ActiveRecord::Base.establish_connection(configs_for_environment.first)
   end
@@ -134,7 +134,7 @@ db_namespace = namespace :db do
   end
 
   desc 'Drops the database for the current Rails.env (use db:drop:all to drop all databases)'
-  task :drop => :load_config do
+  task :drop => [:load_config, :rails_env] do
     configs_for_environment.each { |config| drop_database_and_rescue(config) }
   end
 
@@ -201,7 +201,7 @@ db_namespace = namespace :db do
 
     desc 'Display status of migrations'
     task :status => [:environment, :load_config] do
-      config = ActiveRecord::Base.configurations[Rails.env || 'development']
+      config = ActiveRecord::Base.configurations[Rails.env]
       ActiveRecord::Base.establish_connection(config)
       unless ActiveRecord::Base.connection.table_exists?(ActiveRecord::Migrator.schema_migrations_table_name)
         puts 'Schema migrations table does not exist yet.'
@@ -247,14 +247,14 @@ db_namespace = namespace :db do
   end
 
   # desc 'Drops and recreates the database from db/schema.rb for the current environment and loads the seeds.'
-  task :reset => :environment do
+  task :reset => [:environment, :load_config] do
     db_namespace["drop"].invoke
     db_namespace["setup"].invoke
   end
 
   # desc "Retrieves the charset for the current environment's database"
-  task :charset => :environment do
-    config = ActiveRecord::Base.configurations[Rails.env || 'development']
+  task :charset => [:environment, :load_config] do
+    config = ActiveRecord::Base.configurations[Rails.env]
     case config['adapter']
     when /mysql/
       ActiveRecord::Base.establish_connection(config)
@@ -271,8 +271,8 @@ db_namespace = namespace :db do
   end
 
   # desc "Retrieves the collation for the current environment's database"
-  task :collation => :environment do
-    config = ActiveRecord::Base.configurations[Rails.env || 'development']
+  task :collation => [:environment, :load_config] do
+    config = ActiveRecord::Base.configurations[Rails.env]
     case config['adapter']
     when /mysql/
       ActiveRecord::Base.establish_connection(config)
@@ -283,12 +283,12 @@ db_namespace = namespace :db do
   end
 
   desc 'Retrieves the current schema version number'
-  task :version => :environment do
+  task :version => [:environment, :load_config] do
     puts "Current version: #{ActiveRecord::Migrator.current_version}"
   end
 
   # desc "Raises an error if there are pending migrations"
-  task :abort_if_pending_migrations => :environment do
+  task :abort_if_pending_migrations => [:environment, :load_config] do
     pending_migrations = ActiveRecord::Migrator.new(:up, ActiveRecord::Migrator.migrations_paths).pending_migrations
 
     if pending_migrations.any?
@@ -311,7 +311,7 @@ db_namespace = namespace :db do
 
   namespace :fixtures do
     desc "Load fixtures into the current environment's database. Load specific fixtures using FIXTURES=x,y. Load from subdirectory in test/fixtures using FIXTURES_DIR=z. Specify an alternative path (eg. spec/fixtures) using FIXTURES_PATH=spec/fixtures."
-    task :load => :environment do
+    task :load => [:environment, :load_config] do
       require 'active_record/fixtures'
 
       ActiveRecord::Base.establish_connection(Rails.env)
@@ -324,7 +324,7 @@ db_namespace = namespace :db do
     end
 
     # desc "Search for a fixture given a LABEL or ID. Specify an alternative path (eg. spec/fixtures) using FIXTURES_PATH=spec/fixtures."
-    task :identify => :environment do
+    task :identify => [:environment, :load_config] do
       require 'active_record/fixtures'
 
       label, id = ENV['LABEL'], ENV['ID']
@@ -360,7 +360,7 @@ db_namespace = namespace :db do
     end
 
     desc 'Load a schema.rb file into the database'
-    task :load => :environment do
+    task :load => [:environment, :load_config] do
       file = ENV['SCHEMA'] || "#{Rails.root}/db/schema.rb"
       if File.exists?(file)
         load(file)
@@ -376,7 +376,7 @@ db_namespace = namespace :db do
 
   namespace :structure do
     desc 'Dump the database structure to db/structure.sql. Specify another file with DB_STRUCTURE=db/my_structure.sql'
-    task :dump => :environment do
+    task :dump => [:environment, :load_config] do
       abcs = ActiveRecord::Base.configurations
       filename = ENV['DB_STRUCTURE'] || File.join(Rails.root, "db", "structure.sql")
       case abcs[Rails.env]['adapter']
@@ -387,9 +387,9 @@ db_namespace = namespace :db do
         set_psql_env(abcs[Rails.env])
         search_path = abcs[Rails.env]['schema_search_path']
         unless search_path.blank?
-          search_path = search_path.split(",").map{|search_path_part| "--schema=#{search_path_part.strip}" }.join(" ")
+          search_path = search_path.split(",").map{|search_path_part| "--schema=#{Shellwords.escape(search_path_part.strip)}" }.join(" ")
         end
-        `pg_dump -i -s -x -O -f #{filename} #{search_path} #{abcs[Rails.env]['database']}`
+        `pg_dump -i -s -x -O -f #{Shellwords.escape(filename)} #{search_path} #{Shellwords.escape(abcs[Rails.env]['database'])}`
         raise 'Error dumping database' if $?.exitstatus == 1
       when /sqlite/
         dbfile = abcs[Rails.env]['database']
@@ -407,6 +407,7 @@ db_namespace = namespace :db do
       if ActiveRecord::Base.connection.supports_migrations?
         File.open(filename, "a") { |f| f << ActiveRecord::Base.connection.dump_schema_information }
       end
+      db_namespace['structure:dump'].reenable
     end
 
     # desc "Recreate the databases from the structure.sql file"
@@ -424,7 +425,7 @@ db_namespace = namespace :db do
         end
       when /postgresql/
         set_psql_env(abcs[env])
-        `psql -f "#{filename}" #{abcs[env]['database']} #{abcs[env]['template']}`
+        `psql -f "#{filename}" #{abcs[env]['database']}`
       when /sqlite/
         dbfile = abcs[env]['database']
         `sqlite3 #{dbfile} < "#{filename}"`
@@ -458,7 +459,7 @@ db_namespace = namespace :db do
           db_namespace["test:load_schema"].invoke
         when :sql
           db_namespace["test:load_structure"].invoke
-        end
+      end
     end
 
     # desc "Recreate the test database from an existent structure.sql file"
@@ -485,7 +486,7 @@ db_namespace = namespace :db do
     task :clone_structure => [ "db:structure:dump", "db:test:load_structure" ]
 
     # desc "Empty the test database"
-    task :purge => :environment do
+    task :purge => [:environment, :load_config] do
       abcs = ActiveRecord::Base.configurations
       case abcs['test']['adapter']
       when /mysql/
@@ -527,7 +528,7 @@ db_namespace = namespace :db do
 
   namespace :sessions do
     # desc "Creates a sessions migration for use with ActiveRecord::SessionStore"
-    task :create => :environment do
+    task :create => [:environment, :load_config] do
       raise 'Task unavailable to this database (no migration support)' unless ActiveRecord::Base.connection.supports_migrations?
       Rails.application.load_generators
       require 'rails/generators/rails/session_migration/session_migration_generator'
@@ -535,7 +536,7 @@ db_namespace = namespace :db do
     end
 
     # desc "Clear the sessions table"
-    task :clear => :environment do
+    task :clear => [:environment, :load_config] do
       ActiveRecord::Base.connection.execute "DELETE FROM #{session_table_name}"
     end
   end
@@ -563,7 +564,7 @@ namespace :railties do
         puts "Copied migration #{migration.basename} from #{name}"
       end
 
-      ActiveRecord::Migration.copy( ActiveRecord::Migrator.migrations_paths.first, railties,
+      ActiveRecord::Migration.copy(ActiveRecord::Migrator.migrations_paths.first, railties,
                                     :on_skip => on_skip, :on_copy => on_copy)
     end
   end

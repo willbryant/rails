@@ -232,7 +232,7 @@ module ActiveRecord
   #       add_column :people, :salary, :integer
   #       Person.reset_column_information
   #       Person.all.each do |p|
-  #         p.update_attribute :salary, SalaryCalculator.compute(p)
+  #         p.update_column :salary, SalaryCalculator.compute(p)
   #       end
   #     end
   #   end
@@ -252,7 +252,7 @@ module ActiveRecord
   #     ...
   #     say_with_time "Updating salaries..." do
   #       Person.all.each do |p|
-  #         p.update_attribute :salary, SalaryCalculator.compute(p)
+  #         p.update_column :salary, SalaryCalculator.compute(p)
   #       end
   #     end
   #     ...
@@ -346,11 +346,23 @@ module ActiveRecord
       @name       = self.class.name
       @version    = nil
       @connection = nil
+      @reverting  = false
     end
 
     # instantiate the delegate object after initialize is defined
     self.verbose  = true
     self.delegate = new
+
+    def revert
+      @reverting = true
+      yield
+    ensure
+      @reverting = false
+    end
+
+    def reverting?
+      @reverting
+    end
 
     def up
       self.class.delegate = self
@@ -385,9 +397,11 @@ module ActiveRecord
             end
             @connection = conn
             time = Benchmark.measure {
-              recorder.inverse.each do |cmd, args|
-                send(cmd, *args)
-              end
+              self.revert {
+                recorder.inverse.each do |cmd, args|
+                  send(cmd, *args)
+                end
+              }
             }
           else
             time = Benchmark.measure { change }
@@ -442,9 +456,11 @@ module ActiveRecord
       arg_list = arguments.map{ |a| a.inspect } * ', '
 
       say_with_time "#{method}(#{arg_list})" do
-        unless arguments.empty? || method == :execute
-          arguments[0] = Migrator.proper_table_name(arguments.first)
-          arguments[1] = Migrator.proper_table_name(arguments.second) if method == :rename_table
+        unless reverting?
+          unless arguments.empty? || method == :execute
+            arguments[0] = Migrator.proper_table_name(arguments.first)
+            arguments[1] = Migrator.proper_table_name(arguments.second) if method == :rename_table
+          end
         end
         return super unless connection.respond_to?(method)
         connection.send(method, *arguments, &block)

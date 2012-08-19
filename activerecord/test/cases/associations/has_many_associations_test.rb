@@ -130,6 +130,28 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
     assert_equal car.id, bulb.car_id
   end
 
+  def test_association_protect_foreign_key
+    invoice = Invoice.create
+
+    line_item = invoice.line_items.new
+    assert_equal invoice.id, line_item.invoice_id
+
+    line_item = invoice.line_items.new :invoice_id => invoice.id + 1
+    assert_equal invoice.id, line_item.invoice_id
+
+    line_item = invoice.line_items.build
+    assert_equal invoice.id, line_item.invoice_id
+
+    line_item = invoice.line_items.build :invoice_id => invoice.id + 1
+    assert_equal invoice.id, line_item.invoice_id
+
+    line_item = invoice.line_items.create
+    assert_equal invoice.id, line_item.invoice_id
+
+    line_item = invoice.line_items.create :invoice_id => invoice.id + 1
+    assert_equal invoice.id, line_item.invoice_id
+  end
+
   def test_association_conditions_bypass_attribute_protection
     car = Car.create(:name => 'honda')
 
@@ -903,7 +925,7 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
   end
 
   def test_clearing_updates_counter_cache
-    topic = Topic.first
+    topic = Topic.order(:id).first
 
     assert_difference 'topic.reload.replies_count', -1 do
       topic.replies.clear
@@ -992,14 +1014,14 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
   end
 
   def test_delete_all_association_with_primary_key_deletes_correct_records
-    firm = Firm.find(:first)
+    firm = Firm.order(:id).first
     # break the vanilla firm_id foreign key
     assert_equal 2, firm.clients.count
     firm.clients.first.update_column(:firm_id, nil)
     assert_equal 1, firm.clients(true).count
     assert_equal 1, firm.clients_using_primary_key_with_delete_all.count
     old_record = firm.clients_using_primary_key_with_delete_all.first
-    firm = Firm.find(:first)
+    firm = Firm.order(:id).first
     firm.destroy
     assert_nil Client.find_by_id(old_record.id)
   end
@@ -1159,12 +1181,11 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
 
     core = companies(:rails_core)
     assert_equal accounts(:rails_core_account), core.account
-    assert_equal companies(:leetsoft, :jadedpixel), core.companies
+    assert_equal companies(:leetsoft, :jadedpixel), core.companies.order(:id)
     core.destroy
     assert_nil accounts(:rails_core_account).reload.firm_id
     assert_nil companies(:leetsoft).reload.client_of
     assert_nil companies(:jadedpixel).reload.client_of
-
 
     assert_equal num_accounts, Account.count
   end
@@ -1677,5 +1698,17 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
     car.bulbs.replace([bulb2])
     assert_equal [bulb2], car.bulbs
     assert_equal [bulb2], car.reload.bulbs
+  end
+
+  def test_replace_returns_target
+    car = Car.create(:name => 'honda')
+    bulb1 = car.bulbs.create
+    bulb2 = car.bulbs.create
+    bulb3 = Bulb.create
+
+    assert_equal [bulb1, bulb2], car.bulbs
+    result = car.bulbs.replace([bulb3, bulb1])
+    assert_equal [bulb1, bulb3], car.bulbs
+    assert_equal [bulb1, bulb3], result
   end
 end

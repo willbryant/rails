@@ -1,6 +1,7 @@
 require 'active_support/duration'
-require 'active_support/core_ext/time/zones'
 require 'active_support/core_ext/time/conversions'
+require 'active_support/time_with_zone'
+require 'active_support/core_ext/time/zones'
 
 class Time
   COMMON_YEAR_DAYS_IN_MONTH = [nil, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
@@ -67,7 +68,7 @@ class Time
   end
 
   # Returns a new Time where one or more of the elements have been changed according to the +options+ parameter. The time options
-  # (hour, minute, sec, usec) reset cascadingly, so if only the hour is passed, then minute, sec, and usec is set to 0. If the hour and
+  # (hour, min, sec, usec) reset cascadingly, so if only the hour is passed, then minute, sec, and usec is set to 0. If the hour and
   # minute is passed, then sec and usec is set to 0.
   def change(options)
     ::Time.send(
@@ -217,6 +218,21 @@ class Time
   # Returns a new Time representing the end of the day, 23:59:59.999999 (.999999999 in ruby1.9)
   def end_of_day
     change(:hour => 23, :min => 59, :sec => 59, :usec => 999999.999)
+  end
+
+  # Returns a new Time representing the start of the hour (x:00)
+  def beginning_of_hour
+    change(:min => 0)
+  end
+  alias :at_beginning_of_hour :beginning_of_hour
+
+  # Returns a new Time representing the end of the hour, x:59:59.999999 (.999999999 in ruby1.9)
+  def end_of_hour
+    change(
+      :min => 59,
+      :sec => 59,
+      :usec => 999999.999
+    )
   end
 
   # Returns a new Time representing the start of the month (1st of the month, 0:00)

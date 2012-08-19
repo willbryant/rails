@@ -32,6 +32,7 @@ module ActiveRecord
 
       def initialize(connection, logger, connection_options, config)
         super
+        @visitor = BindSubstitution.new self
         configure_connection
       end
 
@@ -65,10 +66,6 @@ module ActiveRecord
         @connection.escape(string)
       end
 
-      def substitute_at(column, index)
-        Arel.sql "\0"
-      end
-
       # CONNECTION MANAGEMENT ====================================
 
       def active?
@@ -98,7 +95,7 @@ module ActiveRecord
       # DATABASE STATEMENTS ======================================
 
       def explain(arel, binds = [])
-        sql     = "EXPLAIN #{to_sql(arel)}"
+        sql     = "EXPLAIN #{to_sql(arel, binds.dup)}"
         start   = Time.now
         result  = exec_query(sql, 'EXPLAIN', binds)
         elapsed = Time.now - start
@@ -224,8 +221,7 @@ module ActiveRecord
       # Returns an array of record hashes with the column names as keys and
       # column values as values.
       def select(sql, name = nil, binds = [])
-        binds = binds.dup
-        exec_query(sql.gsub("\0") { quote(*binds.shift.reverse) }, name).to_a
+        exec_query(sql, name).to_a
       end
 
       def insert_sql(sql, name = nil, pk = nil, id_value = nil, sequence_name = nil)
@@ -235,17 +231,11 @@ module ActiveRecord
       alias :create :insert_sql
 
       def exec_insert(sql, name, binds)
-        binds = binds.dup
-
-        # Pretend to support bind parameters
-        execute sql.gsub("\0") { quote(*binds.shift.reverse) }, name
+        execute to_sql(sql, binds), name
       end
 
       def exec_delete(sql, name, binds)
-        binds = binds.dup
-
-        # Pretend to support bind parameters
-        execute sql.gsub("\0") { quote(*binds.shift.reverse) }, name
+        execute to_sql(sql, binds), name
         @connection.affected_rows
       end
       alias :exec_update :exec_delete
@@ -274,7 +264,7 @@ module ActiveRecord
 
         # increase timeout so mysql server doesn't disconnect us
         wait_timeout = @config[:wait_timeout]
-        wait_timeout = 2592000 unless wait_timeout.is_a?(Fixnum)
+        wait_timeout = 2147483 unless wait_timeout.is_a?(Fixnum)
         variable_assignments << "@@wait_timeout = #{wait_timeout}"
 
         execute("SET #{variable_assignments.join(', ')}", :skip_logging)

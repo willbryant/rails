@@ -449,6 +449,18 @@ class RelationTest < ActiveRecord::TestCase
     assert_equal authors(:david), authors.find_or_create_by_name(:name => 'David')
   end
 
+  def test_dynamic_find_or_create_by_attributes_bang
+    authors = Author.scoped
+
+    assert_raises(ActiveRecord::RecordInvalid) { authors.find_or_create_by_name!('') }
+
+    lifo = authors.find_or_create_by_name!('Lifo')
+    assert_equal "Lifo", lifo.name
+    assert lifo.persisted?
+
+    assert_equal authors(:david), authors.find_or_create_by_name!(:name => 'David')
+  end
+
   def test_find_id
     authors = Author.scoped
 
@@ -587,6 +599,7 @@ class RelationTest < ActiveRecord::TestCase
     assert ! davids.exists?(authors(:mary).id)
     assert ! davids.exists?("42")
     assert ! davids.exists?(42)
+    assert ! davids.exists?(davids.new)
 
     fake  = Author.where(:name => 'fake author')
     assert ! fake.exists?
@@ -631,6 +644,10 @@ class RelationTest < ActiveRecord::TestCase
     assert davids.loaded?
   end
 
+  def test_delete_all_limit_error
+    assert_raises(ActiveRecord::ActiveRecordError) { Author.limit(10).delete_all }
+  end
+
   def test_select_argument_error
     assert_raises(ArgumentError) { Developer.select }
   end
@@ -662,7 +679,7 @@ class RelationTest < ActiveRecord::TestCase
   def test_relation_merging_with_preload
     ActiveRecord::IdentityMap.without do
       [Post.scoped.merge(Post.preload(:author)), Post.preload(:author).merge(Post.scoped)].each do |posts|
-        assert_queries(2) { assert posts.first.author }
+        assert_queries(2) { assert posts.order(:id).first.author }
       end
     end
   end

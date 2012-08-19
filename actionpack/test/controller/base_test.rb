@@ -68,7 +68,7 @@ class DefaultUrlOptionsController < ActionController::Base
     render :inline => "<%= #{params[:route]} %>"
   end
 
-  def default_url_options(options = nil)
+  def default_url_options
     { :host => 'www.override.com', :action => 'new', :locale => 'en' }
   end
 end
@@ -153,8 +153,6 @@ class PerformActionTest < ActionController::TestCase
     @request     = ActionController::TestRequest.new
     @response    = ActionController::TestResponse.new
     @request.host = "www.nextangle.com"
-
-    rescue_action_in_public!
   end
 
   def test_process_should_be_precise
@@ -167,7 +165,7 @@ class PerformActionTest < ActionController::TestCase
 
   def test_get_on_priv_should_show_selector
     use_controller MethodMissingController
-    assert_deprecated /Using `method_missing` to handle .* use `action_missing` instead/ do
+    assert_deprecated(/Using `method_missing` to handle .* use `action_missing` instead/) do
       get :shouldnt_be_called
     end
     assert_response :success
@@ -178,7 +176,7 @@ class PerformActionTest < ActionController::TestCase
     use_controller MethodMissingController
     assert !@controller.__send__(:action_method?, 'method_missing')
 
-    assert_deprecated /Using `method_missing` to handle .* use `action_missing` instead/ do
+    assert_deprecated(/Using `method_missing` to handle .* use `action_missing` instead/) do
       get :method_missing
     end
     assert_response :success
@@ -187,7 +185,7 @@ class PerformActionTest < ActionController::TestCase
 
   def test_method_missing_should_recieve_symbol
     use_controller AnotherMethodMissingController
-    assert_deprecated /Using `method_missing` to handle .* use `action_missing` instead/ do
+    assert_deprecated(/Using `method_missing` to handle .* use `action_missing` instead/) do
       get :some_action
     end
     assert_kind_of NameError, @controller._exception
@@ -206,7 +204,6 @@ class UrlOptionsTest < ActionController::TestCase
   def setup
     super
     @request.host = 'www.example.com'
-    rescue_action_in_public!
   end
 
   ##
@@ -306,7 +303,6 @@ class DefaultUrlOptionsTest < ActionController::TestCase
   def setup
     super
     @request.host = 'www.example.com'
-    rescue_action_in_public!
   end
 
   def test_default_url_options_override
@@ -357,7 +353,6 @@ class EmptyUrlOptionsTest < ActionController::TestCase
   def setup
     super
     @request.host = 'www.example.com'
-    rescue_action_in_public!
   end
 
   def test_ensure_url_for_works_as_expected_when_called_with_no_options_if_default_url_options_is_not_set

@@ -445,7 +445,7 @@ end
 
 <ruby>
 class OldPostsController < SpecialPostsController
-  layout nil
+  layout false
 
   def show
     @post = Post.find(params[:id])
@@ -1188,7 +1188,7 @@ You can also specify a second partial to be rendered between instances of the ma
 h5. Spacer Templates
 
 <erb>
-<%= render @products, :spacer_template => "product_ruler" %>
+<%= render :partial => @products, :spacer_template => "product_ruler" %>
 </erb>
 
 Rails will render the +_product_ruler+ partial (with no data passed in to it) between each pair of +_product+ partials.

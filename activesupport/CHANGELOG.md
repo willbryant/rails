@@ -1,3 +1,47 @@
+## Rails 3.2.8 (Aug 9, 2012) ##
+
+*   Fix ActiveSupport integration with Mocha > 0.12.1. *Mike Gunderloy*
+
+*   Reverted the deprecation of ActiveSupport::JSON::Variable. *Rafael Mendonça França*
+
+## Rails 3.2.7 (Jul 26, 2012) ##
+
+*   Hash#fetch(fetch) is not the same as doing hash[key]
+
+*   adds a missing require [fixes #6896]
+
+*   make sure the inflection rules are loaded when cherry-picking active_support/core_ext/string/inflections.rb [fixes #6884]
+
+*   Merge pull request #6857 from rsutphin/as_core_ext_time_missing_require
+
+*   bump AS deprecation_horizon to 4.0
+
+## Rails 3.2.6 (Jun 12, 2012) ##
+
+*   No changes.
+
+## Rails 3.2.5 (Jun 1, 2012) ##
+
+*   ActiveSupport::JSON::Variable is deprecated. Define your own #as_json and #encode_json methods
+    for custom JSON string literals. *Erich Menge*
+
+
+## Rails 3.2.4 (May 31, 2012) ##
+
+*   Added #beginning_of_hour and #end_of_hour to Time and DateTime core
+    extensions. *Mark J. Titorenko*
+
+
+## Rails 3.2.3 (March 30, 2012) ##
+
+*   No changes.
+
+
+## Rails 3.2.2 (March 1, 2012) ##
+
+*   No changes.
+
+
 ## Rails 3.2.1 (January 26, 2012) ##
 
 *   Documentation fixes and improvements.
@@ -81,6 +125,37 @@
 *   ActiveSupport::BufferedLogger#flush is deprecated.  Set sync on your
     filehandle, or tune your filesystem.
 
+
+## Rails 3.1.4 (March 1, 2012) ##
+
+*   No changes
+
+
+## Rails 3.1.3 (November 20, 2011) ##
+
+*   No changes
+
+
+## Rails 3.1.2 (November 18, 2011) ##
+
+*   No changes
+
+
+## Rails 3.1.1 (October 7, 2011) ##
+
+*   ruby193: String#prepend is also unsafe *Akira Matsuda*
+
+*   Fix obviously breakage of Time.=== for Time subclasses *jeremyevans*
+
+*   Added fix so that file store does not raise an exception when cache dir does
+    not exist yet. This can happen if a delete_matched is called before anything
+    is saved in the cache. *Philippe Huibonhoa*
+
+*   Fixed performance issue where TimeZone lookups would require tzinfo each time *Tim Lucas*
+
+*   ActiveSupport::OrderedHash is now marked as extractable when using Array#extract_options! *Prem Sichanugrist*
+
+
 ## Rails 3.1.0 (August 30, 2011) ##
 
 *   ActiveSupport::Dependencies#load and ActiveSupport::Dependencies#require now
@@ -123,12 +198,38 @@
 *   JSON decoding now uses the multi_json gem which also vendors a json engine called OkJson. The yaml backend has been removed in favor of OkJson as a default engine for 1.8.x, while the built in 1.9.x json implementation will be used by default. *Josh Kalderimis*
 
 
+## Rails 3.0.12 (March 1, 2012) ##
+
+*   No changes.
+
+
+## Rails 3.0.11 (November 18, 2011) ##
+
+*   No changes.
+
+
+## Rails 3.0.10 (August 16, 2011) ##
+
+*  Delayed backtrace scrubbing in `load_missing_constant` until we actually
+   raise the exception
+
+
+## Rails 3.0.9 (June 16, 2011) ##
+
+*   No changes.
+
+
+## Rails 3.0.8 (June 7, 2011) ##
+
+*   No changes.
+
+
 ## Rails 3.0.7 (April 18, 2011) ##
 
 *   Hash.from_xml no longer loses attributes on tags containing only whitespace *André Arko*
 
 
-*   Rails 3.0.6 (April 5, 2011)
+## Rails 3.0.6 (April 5, 2011)
 
 *   No changes.
 

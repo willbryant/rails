@@ -32,6 +32,7 @@ class FinderTest < ActiveRecord::TestCase
     assert Topic.exists?(:author_name => "Mary", :approved => true)
     assert Topic.exists?(["parent_id = ?", 1])
     assert !Topic.exists?(45)
+    assert !Topic.exists?(Topic.new)
 
     begin
       assert !Topic.exists?("foo")
@@ -44,6 +45,12 @@ class FinderTest < ActiveRecord::TestCase
     assert_raise(NoMethodError) { Topic.exists?([1,2]) }
   end
 
+  def test_exists_does_not_select_columns_without_alias
+    assert_sql(/SELECT\W+1 AS one FROM ["`]topics["`]/i) do
+      Topic.exists?
+    end
+  end
+
   def test_exists_returns_true_with_one_record_and_no_args
     assert Topic.exists?
   end
@@ -53,8 +60,8 @@ class FinderTest < ActiveRecord::TestCase
   def test_exists_with_nil_arg
     assert !Topic.exists?(nil)
     assert Topic.exists?
-    assert !Topic.first.replies.exists?(nil)
-    assert Topic.first.replies.exists?
+    assert !Topic.order(:id).first.replies.exists?(nil)
+    assert Topic.order(:id).first.replies.exists?
   end
 
   # ensures +exists?+ runs valid SQL by excluding order value
@@ -62,7 +69,12 @@ class FinderTest < ActiveRecord::TestCase
     assert Topic.order(:id).uniq.exists?
   end
 
-  def test_does_not_exist_with_empty_table_and_no_args_given
+  def test_exists_with_includes_limit_and_empty_result
+    assert !Topic.includes(:replies).limit(0).exists?
+    assert !Topic.includes(:replies).limit(1).where('0 = 1').exists?
+  end
+
+  def test_exists_with_empty_table_and_no_args_given
     Topic.delete_all
     assert !Topic.exists?
   end
@@ -862,6 +874,28 @@ class FinderTest < ActiveRecord::TestCase
     assert another.persisted?
   end
 
+  def test_find_or_create_from_one_attribute_bang
+    number_of_companies = Company.count
+    assert_raises(ActiveRecord::RecordInvalid) { Company.find_or_create_by_name!("") }
+    assert_equal number_of_companies, Company.count
+    sig38 = Company.find_or_create_by_name!("38signals")
+    assert_equal number_of_companies + 1, Company.count
+    assert_equal sig38, Company.find_or_create_by_name!("38signals")
+    assert sig38.persisted?
+  end
+
+  def test_find_or_create_from_two_attributes_bang
+    number_of_companies = Company.count
+    assert_raises(ActiveRecord::RecordInvalid) { Company.find_or_create_by_name_and_firm_id!("", 17) }
+    assert_equal number_of_companies, Company.count
+    sig38 = Company.find_or_create_by_name_and_firm_id!("38signals", 17)
+    assert_equal number_of_companies + 1, Company.count
+    assert_equal sig38, Company.find_or_create_by_name_and_firm_id!("38signals", 17)
+    assert sig38.persisted?
+    assert_equal "38signals", sig38.name
+    assert_equal 17, sig38.firm_id
+  end
+
   def test_find_or_create_from_two_attributes_with_one_being_an_aggregate
     number_of_customers = Customer.count
     created_customer = Customer.find_or_create_by_balance_and_name(Money.new(123), "Elizabeth")
@@ -1180,6 +1214,10 @@ class FinderTest < ActiveRecord::TestCase
     rescue ActiveRecord::RecordNotFound => e
       assert_equal 'Couldn\'t find Toy with name=Hello World!', e.message
     end
+  end
+
+  def test_finder_with_offset_string
+    assert_nothing_raised(ActiveRecord::StatementInvalid) { Topic.find(:all, :offset => "3") }
   end
 
   protected

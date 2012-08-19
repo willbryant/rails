@@ -92,13 +92,18 @@ module ActiveRecord
       # #connection can be called any number of times; the connection is
       # held in a hash keyed by the thread id.
       def connection
-        @reserved_connections[current_connection_id] ||= checkout
+        synchronize do
+          @reserved_connections[current_connection_id] ||= checkout
+        end
       end
 
-      # Check to see if there is an active connection in this connection
-      # pool.
+      # Is there an open connection that is being used for the current thread?
       def active_connection?
-        active_connections.any?
+        synchronize do
+          @reserved_connections.fetch(current_connection_id) {
+            return false
+          }.in_use?
+        end
       end
 
       # Signal that the thread is finished with the current connection.
@@ -225,8 +230,9 @@ connection.  For example: ActiveRecord::Base.connection.close
       # - ConnectionTimeoutError: no connection can be obtained from the pool
       #   within the timeout period.
       def checkout
-        # Checkout an available connection
         synchronize do
+          waited_time = 0
+
           loop do
             conn = @connections.find { |c| c.lease }
 
@@ -242,17 +248,25 @@ connection.  For example: ActiveRecord::Base.connection.close
               return conn
             end
 
-            @queue.wait(@timeout)
-
-            if(active_connections.size < @connections.size)
-              next
-            else
-              clear_stale_cached_connections!
-              if @size == active_connections.size
-                raise ConnectionTimeoutError, "could not obtain a database connection#{" within #{@timeout} seconds" if @timeout}. The max pool size is currently #{@size}; consider increasing it."
-              end
+            if waited_time >= @timeout
+              raise ConnectionTimeoutError, "could not obtain a database connection#{" within #{@timeout} seconds" if @timeout} (waited #{waited_time} seconds). The max pool size is currently #{@size}; consider increasing it."
             end
 
+            # Sometimes our wait can end because a connection is available,
+            # but another thread can snatch it up first. If timeout hasn't
+            # passed but no connection is avail, looks like that happened --
+            # loop and wait again, for the time remaining on our timeout. 
+            before_wait = Time.now
+            @queue.wait( [@timeout - waited_time, 0].max )
+            waited_time += (Time.now - before_wait)
+
+            # Will go away in Rails 4, when we don't clean up
+            # after leaked connections automatically anymore. Right now, clean
+            # up after we've returned from a 'wait' if it looks like it's
+            # needed, then loop and try again. 
+            if(active_connections.size >= @connections.size)
+              clear_stale_cached_connections!
+            end
           end
         end
       end
@@ -268,10 +282,28 @@ connection.  For example: ActiveRecord::Base.connection.close
             conn.expire
             @queue.signal
           end
+
+          release conn
         end
       end
 
       private
+
+      def release(conn)
+        synchronize do
+          thread_id = nil
+
+          if @reserved_connections[current_connection_id] == conn
+            thread_id = current_connection_id
+          else
+            thread_id = @reserved_connections.keys.find { |k|
+              @reserved_connections[k] == conn
+            }
+          end
+
+          @reserved_connections.delete thread_id if thread_id
+        end
+      end
 
       def new_connection
         ActiveRecord::Base.send(spec.adapter_method, spec.config)
@@ -344,9 +376,7 @@ connection.  For example: ActiveRecord::Base.connection.close
         connection_pools.values.any? { |pool| pool.active_connection? }
       end
 
-      # Returns any connections in use by the current thread back to the pool,
-      # and also returns connections to the pool cached by threads that are no
-      # longer alive.
+      # Returns any connections in use by the current thread back to the pool.
       def clear_active_connections!
         @connection_pools.each_value {|pool| pool.release_connection }
       end

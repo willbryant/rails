@@ -1,3 +1,123 @@
+## Rails 3.2.8 (Aug 9, 2012) ##
+
+*   Do not consider the numeric attribute as changed if the old value is zero and the new value
+    is not a string.
+    Fixes #7237.
+
+    *Rafael Mendonça França*
+
+*   Removes the deprecation of `update_attribute`. *fxn*
+
+*   Reverted the deprecation of `composed_of`. *Rafael Mendonça França*
+
+*   Reverted the deprecation of `*_sql` association options. They will
+    be deprecated in 4.0 instead. *Jon Leighton*
+
+*   Do not eager load AR session store. ActiveRecord::SessionStore depends on the abstract store
+    in Action Pack. Eager loading this class would break client code that eager loads Active Record
+    standalone.
+    Fixes #7160
+
+    *Xavier Noria*
+
+*   Do not set RAILS_ENV to "development" when using `db:test:prepare` and related rake tasks.
+    This was causing the truncation of the development database data when using RSpec.
+    Fixes #7175.
+
+    *Rafael Mendonça França*
+
+## Rails 3.2.7 (Jul 26, 2012) ##
+
+*   `:finder_sql` and `:counter_sql` options on collection associations
+    are deprecated. Please transition to using scopes.
+
+    *Jon Leighton*
+
+*   `:insert_sql` and `:delete_sql` options on `has_and_belongs_to_many`
+    associations are deprecated. Please transition to using `has_many
+    :through`
+
+    *Jon Leighton*
+
+*   `composed_of` has been deprecated. You'll have to write your own accessor
+    and mutator methods if you'd like to use value objects to represent some
+    portion of your models.
+
+    *Steve Klabnik*
+
+*   `update_attribute` has been deprecated. Use `update_column` if
+    you want to bypass mass-assignment protection, validations, callbacks,
+    and touching of updated_at. Otherwise please use `update_attributes`.
+
+    *Steve Klabnik*
+
+## Rails 3.2.6 (Jun 12, 2012) ##
+
+*   protect against the nesting of hashes changing the
+    table context in the next call to build_from_hash. This fix
+    covers this case as well.
+
+    CVE-2012-2695
+
+*   Revert earlier 'perf fix' (see 3.2.4 changelog / GH #6289). This
+    change introduced a regression (GH #6609). assoc.clear and
+    assoc.delete_all have loaded the association before doing the delete
+    since at least Rails 2.3. Doing the delete without loading the
+    records means that the `before_remove` and `after_remove` callbacks do
+    not get invoked. Therefore, this change was less a fix a more an
+    optimisation, which should only have gone into master.
+
+    *Jon Leighton*
+
+## Rails 3.2.5 (Jun 1, 2012) ##
+
+*   Restore behavior of Active Record 3.2.3 scopes.
+    A series of commits relating to preloading and scopes caused a regression.
+
+    *Andrew White*
+
+
+## Rails 3.2.4 (May 31, 2012) ##
+
+*   Perf fix: Don't load the records when doing assoc.delete_all.
+    GH #6289. *Jon Leighton*
+
+*   Association preloading shouldn't be affected by the current scoping.
+    This could cause infinite recursion and potentially other problems.
+    See GH #5667. *Jon Leighton*
+
+*   Datetime attributes are forced to be changed. GH #3965
+
+*   Fix attribute casting. GH #5549
+
+*   Fix #5667. Preloading should ignore scoping.
+
+*   Predicate builder should not recurse for determining where columns.
+    Thanks to Ben Murphy for reporting this! CVE-2012-2661
+
+
+## Rails 3.2.3 (March 30, 2012) ##
+
+*   Added find_or_create_by_{attribute}! dynamic method. *Andrew White*
+
+*   Whitelist all attribute assignment by default. Change the default for newly generated applications to whitelist all attribute assignment.  Also update the generated model classes so users are reminded of the importance of attr_accessible. *NZKoz*
+
+*   Update ActiveRecord::AttributeMethods#attribute_present? to return false for empty strings. *Jacobkg*
+
+*   Fix associations when using per class databases. *larskanis*
+
+*   Revert setting NOT NULL constraints in add_timestamps *fxn*
+
+*   Fix mysql to use proper text types. Fixes #3931. *kennyj*
+
+*   Fix #5069 - Protect foreign key from mass assignment through association builder. *byroot*
+
+
+## Rails 3.2.2 (March 1, 2012) ##
+
+*   No changes.
+
+
 ## Rails 3.2.1 (January 26, 2012) ##
 
 *   The threshold for auto EXPLAIN is ignored if there's no logger. *fxn*
@@ -192,7 +312,8 @@
 
     *Brian Durand*
 
-## Rails 3.1.3 (unreleased) ##
+
+## Rails 3.1.3 (November 20, 2011) ##
 
 *   Perf fix: If we're deleting all records in an association, don't add a IN(..) clause
     to the query. *GH 3672*
@@ -205,7 +326,8 @@
 
     *Christos Zisopoulos and Kenny J*
 
-## Rails 3.1.2 (unreleased) ##
+
+## Rails 3.1.2 (November 18, 2011) ##
 
 *   Fix bug with PostgreSQLAdapter#indexes. When the search path has multiple schemas, spaces
     were not being stripped from the schema names after the first.
@@ -251,6 +373,7 @@
 *   MySQL: use the information_schema than the describe command when we look for a primary key. *GH #3440*
 
     *Kenny J*
+
 
 ## Rails 3.1.1 (October 7, 2011) ##
 

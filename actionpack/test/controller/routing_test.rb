@@ -157,6 +157,31 @@ class LegacyRouteSetTests < Test::Unit::TestCase
 
   def test_star_paths_are_greedy
     rs.draw do
+      match "/*path", :to => lambda { |env|
+        x = env["action_dispatch.request.path_parameters"][:path]
+        [200, {}, [x]]
+      }, :format => false
+    end
+
+    u = URI('http://example.org/foo/bar.html')
+    assert_equal u.path.sub(/^\//, ''), get(u)
+  end
+
+  def test_star_paths_are_greedy_but_not_too_much
+    rs.draw do
+      match "/*path", :to => lambda { |env|
+        x = JSON.dump env["action_dispatch.request.path_parameters"]
+        [200, {}, [x]]
+      }
+    end
+
+    expected = { "path" => "foo/bar", "format" => "html" }
+    u = URI('http://example.org/foo/bar.html')
+    assert_equal expected, JSON.parse(get(u))
+  end
+
+  def test_optional_star_paths_are_greedy
+    rs.draw do
       match "/(*filters)", :to => lambda { |env|
         x = env["action_dispatch.request.path_parameters"][:filters]
         [200, {}, [x]]
@@ -167,9 +192,9 @@ class LegacyRouteSetTests < Test::Unit::TestCase
     assert_equal u.path.sub(/^\//, ''), get(u)
   end
 
-  def test_star_paths_are_greedy_but_not_too_much
+  def test_optional_star_paths_are_greedy_but_not_too_much
     rs.draw do
-      match "/(*filters).:format", :to => lambda { |env|
+      match "/(*filters)", :to => lambda { |env|
         x = JSON.dump env["action_dispatch.request.path_parameters"]
         [200, {}, [x]]
       }
@@ -252,6 +277,16 @@ class LegacyRouteSetTests < Test::Unit::TestCase
   def test_draw_with_block_arity_one_raises
     assert_raise(RuntimeError) do
       @rs.draw { |map| map.match '/:controller(/:action(/:id))' }
+    end
+  end
+
+  def test_specific_controller_action_failure
+    @rs.draw do
+      mount lambda {} => "/foo"
+    end
+
+    assert_raises(ActionController::RoutingError) do
+      url_for(@rs, :controller => "omg", :action => "lol")
     end
   end
 

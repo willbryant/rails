@@ -481,6 +481,8 @@ module ActiveRecord
             raise RecordNotSaved, "Failed to replace #{reflection.name} because one or more of the " \
                                   "new records could not be saved."
           end
+
+          target
         end
 
         def concat_records(records)

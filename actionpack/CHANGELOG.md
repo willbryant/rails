@@ -1,10 +1,140 @@
-## Rails 3.2.2 (unreleased) ##
+## Rails 3.2.8 (Aug 9, 2012) ##
+
+*   There is an XSS vulnerability in the strip_tags helper in Ruby on Rails, the
+    helper doesn't correctly handle malformed html.  As a result an attacker can
+    execute arbitrary javascript through the use of specially crafted malformed
+    html.
+
+    *Marek from Nethemba (www.nethemba.com) & Santiago Pastorino*
+
+*   When a "prompt" value is supplied to the `select_tag` helper, the "prompt" value is not escaped.
+    If untrusted data is not escaped, and is supplied as the prompt value, there is a potential for XSS attacks.
+    Vulnerable code will look something like this:
+    select_tag("name", options, :prompt => UNTRUSTED_INPUT)
+
+    *Santiago Pastorino*
+
+*   Reverted the deprecation of `:confirm`. *Rafael Mendonça França*
+
+*   Reverted the deprecation of `:disable_with`. *Rafael Mendonça França*
+
+*   Reverted the deprecation of `:mouseover` option to `image_tag`. *Rafael Mendonça França*
+
+*   Reverted the deprecation of `button_to_function` and `link_to_function` helpers.
+
+    *Rafael Mendonça França*
+
+
+## Rails 3.2.7 (Jul 26, 2012) ##
+
+*   Do not convert digest auth strings to symbols. CVE-2012-3424
+
+*   Bump Journey requirements to 1.0.4
+
+*   Add support for optional root segments containing slashes
+
+*   Fixed bug creating invalid HTML in select options
+
+*   Show in log correct wrapped keys
+
+*   Fix NumberHelper options wrapping to prevent verbatim blocks being rendered instead of line continuations.
+
+*   ActionController::Metal doesn't have logger method, check it and then delegate
+
+*   ActionController::Caching depends on RackDelegation and AbstractController::Callbacks
+
+
+## Rails 3.2.6 (Jun 12, 2012) ##
+
+*   nil is removed from array parameter values
+
+    CVE-2012-2694
+
+*   Deprecate `:confirm` in favor of `':data => { :confirm => "Text" }'` option for `button_to`, `button_tag`, `image_submit_tag`, `link_to` and `submit_tag` helpers.
+
+    *Carlos Galdino*
+
+*   Allow to use mounted_helpers (helpers for accessing mounted engines) in ActionView::TestCase. *Piotr Sarnacki*
+
+*   Include mounted_helpers (helpers for accessing mounted engines) in ActionDispatch::IntegrationTest by default. *Piotr Sarnacki*
+
+
+## Rails 3.2.5 (Jun 1, 2012) ##
+
+*   No changes.
+
+
+## Rails 3.2.4 (May 31, 2012) ##
+
+*   Deprecate old APIs for highlight, excerpt and word_wrap *Jeremy Walker*
+
+*   Deprecate `:disable_with` in favor of `'data-disable-with'` option for `button_to`, `button_tag` and `submit_tag` helpers.
+
+    *Carlos Galdino + Rafael Mendonça França*
+
+*   Deprecate `:mouseover` option for `image_tag` helper. *Rafael Mendonça França*
+
+*   Deprecate `button_to_function` and `link_to_function` helpers. *Rafael Mendonça França*
+
+*   Don't break Haml with textarea newline fix.  GH #393, #4000, #5190, #5191
+
+*   Fix options handling on labels. GH #2492, #5614
+
+*   Added config.action_view.embed_authenticity_token_in_remote_forms to deal
+    with regression from 16ee611fa
+
+*   Set rendered_format when doing render :inline. GH #5632
+
+*   Fix the redirect when it receive blocks with arity of 1. Closes #5677
+
+*   Strip [nil] from parameters hash. Thanks to Ben Murphy for
+    reporting this! CVE-2012-2660
+
+
+## Rails 3.2.3 (March 30, 2012) ##
+
+*   Allow to lazy load `default_form_builder` by passing a `String` instead of a constant. *Piotr Sarnacki*
+
+*   Fix #5632, render :inline set the proper rendered format. *Santiago Pastorino*
+
+*   Fix textarea rendering when using plugins like HAML. Such plugins encode the first newline character in the content. This issue was introduced in https://github.com/rails/rails/pull/5191 *James Coleman*
+
+*   Remove the leading \n added by textarea on assert_select. *Santiago Pastorino*
+
+*   Add `config.action_view.embed_authenticity_token_in_remote_forms` (defaults to true) which allows to set if authenticity token will be included by default in remote forms. If you change it to false, you can still force authenticity token by passing `:authenticity_token => true` in form options *Piotr Sarnacki*
+
+*   Do not include the authenticity token in forms where remote: true as ajax forms use the meta-tag value *DHH*
+
+*   Turn off verbose mode of rack-cache, we still have X-Rack-Cache to
+    check that info. Closes #5245. *Santiago Pastorino*
+
+*   Fix #5238, rendered_format is not set when template is not rendered. *Piotr Sarnacki*
+
+*   Upgrade rack-cache to 1.2. *José Valim*
+
+*   ActionController::SessionManagement is deprecated. *Santiago Pastorino*
+
+*   Since the router holds references to many parts of the system like engines, controllers and the application itself, inspecting the route set can actually be really slow, therefore we default alias inspect to to_s. *José Valim*
+
+*   Add a new line after the textarea opening tag. Closes #393 *Rafael Mendonça França*
+
+*   Always pass a respond block from to responder. We should let the responder to decide what to do with the given overridden response block, and not short circuit it. *sikachu*
+
+*   Fixes layout rendering regression from 3.2.2. *José Valim*
+
+
+## Rails 3.2.2 (March 1, 2012) ##
+
+*   Format lookup for partials is derived from the format in which the template is being rendered. Closes #5025 part 2 *Santiago Pastorino*
+
+*   Use the right format when a partial is missing. Closes #5025. *Santiago Pastorino*
 
 *   Default responder will now always use your overridden block in `respond_with` to render your response. *Prem Sichanugrist*
 
 *   check_box helper with :disabled => true will generate a disabled hidden field to conform with the HTML convention where disabled fields are not submitted with the form.
     This is a behavior change, previously the hidden tag had a value of the disabled checkbox.
     *Tadas Tamosauskas*
+
 
 ## Rails 3.2.1 (January 26, 2012) ##
 

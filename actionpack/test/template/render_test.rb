@@ -21,9 +21,7 @@ module RenderTestCases
   end
 
   def test_render_without_options
-    @view.render()
-    flunk "Render did not raise ArgumentError"
-  rescue ArgumentError => e
+    e = assert_raises(ArgumentError) { @view.render() }
     assert_match "You invoked render but did not give any of :partial, :template, :inline, :file or :text option.", e.message
   end
 
@@ -49,6 +47,18 @@ module RenderTestCases
   def test_render_template_with_format
     assert_match "<h1>No Comment</h1>", @view.render(:template => "comments/empty", :formats => [:html])
     assert_match "<error>No Comment</error>", @view.render(:template => "comments/empty", :formats => [:xml])
+  end
+
+  def test_render_partial_implicitly_use_format_of_the_rendered_template
+    @view.lookup_context.formats = [:json]
+    assert_equal "Hello world", @view.render(:template => "test/one", :formats => [:html])
+  end
+
+  def test_render_template_with_a_missing_partial_of_another_format
+    @view.lookup_context.formats = [:html]
+    assert_raise ActionView::Template::Error, "Missing partial /missing with {:locale=>[:en], :formats=>[:json], :handlers=>[:erb, :builder]}" do
+      @view.render(:template => "with_format", :formats => [:json])
+    end
   end
 
   def test_render_file_with_locale
@@ -141,25 +151,26 @@ module RenderTestCases
   end
 
   def test_render_partial_with_invalid_name
-    @view.render(:partial => "test/200")
-    flunk "Render did not raise ArgumentError"
-  rescue ArgumentError => e
+    e = assert_raises(ArgumentError) { @view.render(:partial => "test/200") }
     assert_equal "The partial name (test/200) is not a valid Ruby identifier; " +
-                                "make sure your partial name starts with a letter or underscore, " +
-                                "and is followed by any combinations of letters, numbers, or underscores.", e.message
+      "make sure your partial name starts with a letter or underscore, " +
+      "and is followed by any combinations of letters, numbers, or underscores.", e.message
+  end
+
+  def test_render_partial_with_missing_filename
+    e = assert_raises(ArgumentError) { @view.render(:partial => "test/") }
+    assert_equal "The partial name (test/) is not a valid Ruby identifier; " +
+      "make sure your partial name starts with a letter or underscore, " +
+      "and is followed by any combinations of letters, numbers, or underscores.", e.message
   end
 
   def test_render_partial_with_incompatible_object
-    @view.render(:partial => nil)
-    flunk "Render did not raise ArgumentError"
-  rescue ArgumentError => e
+    e = assert_raises(ArgumentError) { @view.render(:partial => nil) }
     assert_equal "'#{nil.inspect}' is not an ActiveModel-compatible object that returns a valid partial path.", e.message
   end
 
   def test_render_partial_with_errors
-    @view.render(:partial => "test/raise")
-    flunk "Render did not raise Template::Error"
-  rescue ActionView::Template::Error => e
+    e = assert_raises(ActionView::Template::Error) { @view.render(:partial => "test/raise") }
     assert_match %r!method.*doesnt_exist!, e.message
     assert_equal "", e.sub_template_message
     assert_equal "1", e.line_number
@@ -168,9 +179,7 @@ module RenderTestCases
   end
 
   def test_render_sub_template_with_errors
-    @view.render(:template => "test/sub_template_raise")
-    flunk "Render did not raise Template::Error"
-  rescue ActionView::Template::Error => e
+    e = assert_raises(ActionView::Template::Error) { @view.render(:template => "test/sub_template_raise") }
     assert_match %r!method.*doesnt_exist!, e.message
     assert_equal "Trace of template inclusion: #{File.expand_path("#{FIXTURE_LOAD_PATH}/test/sub_template_raise.html.erb")}", e.sub_template_message
     assert_equal "1", e.line_number
@@ -178,9 +187,7 @@ module RenderTestCases
   end
 
   def test_render_file_with_errors
-    @view.render(:file => File.expand_path("test/_raise", FIXTURE_LOAD_PATH))
-    flunk "Render did not raise Template::Error"
-  rescue ActionView::Template::Error => e
+    e = assert_raises(ActionView::Template::Error) { @view.render(:file => File.expand_path("test/_raise", FIXTURE_LOAD_PATH)) }
     assert_match %r!method.*doesnt_exist!, e.message
     assert_equal "", e.sub_template_message
     assert_equal "1", e.line_number
@@ -288,7 +295,7 @@ module RenderTestCases
   # TODO: The reason for this test is unclear, improve documentation
   def test_render_missing_xml_partial_and_raise_missing_template
     @view.formats = [:xml]
-    assert_raise(ActionView::MissingTemplate) { @view.render(:partial => "test/layout_for_partial") }
+    assert_raises(ActionView::MissingTemplate) { @view.render(:partial => "test/layout_for_partial") }
   ensure
     @view.formats = nil
   end
@@ -329,11 +336,17 @@ module RenderTestCases
     ActionView::Template.register_template_handler :foo, CustomHandler
     assert_equal 'source: "Hello, <%= name %>!"', @view.render(:inline => "Hello, <%= name %>!", :locals => { :name => "Josh" }, :type => :foo)
   end
+  
+  def test_render_knows_about_types_registered_when_extensions_are_checked_earlier_in_initialization
+    ActionView::Template::Handlers.extensions
+    ActionView::Template.register_template_handler :foo, CustomHandler
+    assert ActionView::Template::Handlers.extensions.include?(:foo)
+  end
 
   def test_render_ignores_templates_with_malformed_template_handlers
     ActiveSupport::Deprecation.silence do
       %w(malformed malformed.erb malformed.html.erb malformed.en.html.erb).each do |name|
-        assert_raise(ActionView::MissingTemplate) { @view.render(:file => "test/malformed/#{name}") }
+        assert_raises(ActionView::MissingTemplate) { @view.render(:file => "test/malformed/#{name}") }
       end
     end
   end
@@ -459,23 +472,15 @@ class LazyViewRenderTest < ActiveSupport::TestCase
 
     def test_render_utf8_template_with_incompatible_external_encoding
       with_external_encoding Encoding::SHIFT_JIS do
-        begin
-          @view.render(:file => "test/utf8", :formats => [:html], :layouts => "layouts/yield")
-          flunk 'Should have raised incompatible encoding error'
-        rescue ActionView::Template::Error => error
-          assert_match 'Your template was not saved as valid Shift_JIS', error.original_exception.message
-        end
+        e = assert_raises(ActionView::Template::Error) { @view.render(:file => "test/utf8", :formats => [:html], :layouts => "layouts/yield") }
+        assert_match 'Your template was not saved as valid Shift_JIS', e.original_exception.message
       end
     end
 
     def test_render_utf8_template_with_partial_with_incompatible_encoding
       with_external_encoding Encoding::SHIFT_JIS do
-        begin
-          @view.render(:file => "test/utf8_magic_with_bare_partial", :formats => [:html], :layouts => "layouts/yield")
-          flunk 'Should have raised incompatible encoding error'
-        rescue ActionView::Template::Error => error
-          assert_match 'Your template was not saved as valid Shift_JIS', error.original_exception.message
-        end
+        e = assert_raises(ActionView::Template::Error) { @view.render(:file => "test/utf8_magic_with_bare_partial", :formats => [:html], :layouts => "layouts/yield") }
+        assert_match 'Your template was not saved as valid Shift_JIS', e.original_exception.message
       end
     end
 

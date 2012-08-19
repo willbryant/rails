@@ -873,6 +873,22 @@ if ActiveRecord::Base.connection.supports_migrations?
       assert_raise(ArgumentError) { Person.connection.remove_column("funny") }
     end
 
+    def test_remove_column_with_array_as_an_argument_is_deprecated
+      return skip "remove_column with array as argument is not supported with OracleAdapter" if current_adapter? :OracleAdapter
+
+      ActiveRecord::Base.connection.create_table(:hats) do |table|
+        table.column :hat_name, :string, :limit => 100
+        table.column :hat_size, :integer
+        table.column :hat_style, :string, :limit => 100
+      end
+
+      assert_deprecated(/Passing array to remove_columns is deprecated/) do
+        Person.connection.remove_column("hats", ["hat_name", "hat_size"])
+      end
+    ensure
+      ActiveRecord::Base.connection.drop_table(:hats) rescue nil
+    end
+
     def test_change_type_of_not_null_column
       assert_nothing_raised do
         Topic.connection.change_column "topics", "written_on", :datetime, :null => false
@@ -932,6 +948,26 @@ if ActiveRecord::Base.connection.supports_migrations?
         ActiveRecord::Base.connection.drop_table :octopi rescue nil
       end
     end
+
+    if current_adapter?(:PostgreSQLAdapter)
+      def test_rename_table_for_postgresql_should_also_rename_default_sequence
+        begin
+          ActiveRecord::Base.connection.create_table :octopuses do |t|
+            t.column :url, :string
+          end
+          ActiveRecord::Base.connection.rename_table :octopuses, :octopi
+
+          pk, seq = ActiveRecord::Base.connection.pk_and_sequence_for('octopi')
+
+          assert_equal "octopi_#{pk}_seq", seq
+
+        ensure
+          ActiveRecord::Base.connection.drop_table :octopuses rescue nil
+          ActiveRecord::Base.connection.drop_table :octopi rescue nil
+        end
+      end
+    end
+
 
     def test_change_column_nullability
       Person.delete_all

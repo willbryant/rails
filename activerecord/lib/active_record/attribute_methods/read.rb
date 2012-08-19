@@ -67,19 +67,9 @@ module ActiveRecord
           # we first define with the __temp__ identifier, and then use alias method to
           # rename it to what we want.
           def define_method_attribute(attr_name)
-            cast_code = attribute_cast_code(attr_name)
-
             generated_attribute_methods.module_eval <<-STR, __FILE__, __LINE__ + 1
               def __temp__
-                #{internal_attribute_access_code(attr_name, cast_code)}
-              end
-              alias_method '#{attr_name}', :__temp__
-              undef_method :__temp__
-            STR
-
-            generated_external_attribute_methods.module_eval <<-STR, __FILE__, __LINE__ + 1
-              def __temp__(v, attributes, attributes_cache, attr_name)
-                #{external_attribute_access_code(attr_name, cast_code)}
+                #{internal_attribute_access_code(attr_name, attribute_cast_code(attr_name))}
               end
               alias_method '#{attr_name}', :__temp__
               undef_method :__temp__
@@ -87,6 +77,17 @@ module ActiveRecord
           end
 
         private
+
+          def define_external_attribute_method(attr_name)
+            generated_external_attribute_methods.module_eval <<-STR, __FILE__, __LINE__ + 1
+              def __temp__(v, attributes, attributes_cache, attr_name)
+                #{external_attribute_access_code(attr_name, attribute_cast_code(attr_name))}
+              end
+              alias_method '#{attr_name}', :__temp__
+              undef_method :__temp__
+            STR
+          end
+
           def cacheable_column?(column)
             attribute_types_cached_by_default.include?(column.type)
           end

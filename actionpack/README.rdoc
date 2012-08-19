@@ -218,7 +218,7 @@ A short rundown of some of the major features:
 
       def show
         # the output of the method will be cached as
-        # ActionController::Base.page_cache_directory + "/weblog/show/n.html"
+        # ActionController::Base.page_cache_directory + "/weblog/show.html"
         # and the web server will pick it up without even hitting Rails
       end
 
@@ -322,7 +322,7 @@ The latest version of Action Pack can be installed with RubyGems:
 
 Source code can be downloaded as part of the Rails project on GitHub
 
-* https://github.com/rails/rails/tree/master/actionpack
+* https://github.com/rails/rails/tree/3-2-stable/actionpack
 
 
 == License

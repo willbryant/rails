@@ -42,7 +42,7 @@ h4. Install git
 
 Ruby on Rails uses git for source code control. The "git homepage":http://git-scm.com/ has installation instructions. There are a variety of resources on the net that will help you get familiar with git:
 
-* "Everyday Git":http://www.kernel.org/pub/software/scm/git/docs/everyday.html will teach you just enough about git to get by.
+* "Everyday Git":http://schacon.github.com/git/everyday.html will teach you just enough about git to get by.
 * The "PeepCode screencast":https://peepcode.com/products/git on git ($9) is easier to follow.
 * "GitHub":http://help.github.com offers links to a variety of git resources.
 * "Pro Git":http://progit.org/book/ is an entire book about git with a Creative Commons license.
@@ -307,16 +307,16 @@ h4. Follow the Coding Conventions
 
 Rails follows a simple set of coding style conventions.
 
-* Two spaces, no tabs.
-* No trailing whitespace. Blank lines should not have any space.
-* Do not indent after private/protected. Private/protected should have the same indentation as the methods around.
+* Two spaces, no tabs (for indentation).
+* No trailing whitespace. Blank lines should not have any spaces.
+* Indent after private/protected.
 * Prefer +&amp;&amp;+/+||+ over +and+/+or+.
-* Prefer class << self block over self.method for class methods.
-* +MyClass.my_method(my_arg)+ not +my_method( my_arg )+ or +my_method my_arg+.
-* a = b and not a=b.
-* Follow the conventions you see used in the source already.
+* Prefer class << self over self.method for class methods.
+* Use +MyClass.my_method(my_arg)+ not +my_method( my_arg )+ or +my_method my_arg+.
+* Use a = b and not a=b.
+* Follow the conventions in the source you see used already.
 
-These are some guidelines and please use your best judgment in using them.
+The above are guidelines -- please use your best judgment in using them.
 
 h4. Sanity Check
 
@@ -329,8 +329,40 @@ h4. Commit Your Changes
 When you're happy with the code on your computer, you need to commit the changes to git:
 
 <shell>
-$ git commit -a -m "Here is a commit message on what I changed in this commit"
+$ git commit -a
 </shell>
+
+At this point, your editor should be fired up and you can write a message for this commit. Well formatted and descriptive commit messages are extremely helpful for the others, especially when figuring out why given change was made, so please take the time to write it.
+
+Good commit message should be formatted according to the following example:
+
+<plain>
+Short summary (ideally 50 characters or less)
+
+More detailed description, if necessary. It should be wrapped to 72
+characters. Try to be as descriptive as you can, even if you think that
+the commit content is obvious, it may not be obvious to others. You
+should add such description also if it's already present in bug tracker,
+it should not be necessary to visit a webpage to check the history.
+
+Description can have multiple paragraps and you can use code examples
+inside, just indent it with 4 spaces:
+
+    class PostsController
+      def index
+        respond_with Post.limit(10)
+      end
+    end
+
+You can also add bullet points:
+
+- you can use dashes or asterisks
+
+- also, try to indent next line of a point for readability, if it's too
+  long to fit in 72 characters
+</plain>
+
+TIP. Please squash your commits into a single commit when appropriate. This simplifies future cherry picks, and also keeps the git log clean.
 
 h4. Update master
 

@@ -1,3 +1,35 @@
+## Rails 3.2.8 (Aug 9, 2012) ##
+
+*   No changes.
+
+## Rails 3.2.7 (Jul 26, 2012) ##
+
+*   No changes.
+
+## Rails 3.2.6 (Jun 12, 2012) ##
+
+*   No changes.
+
+## Rails 3.2.5 (Jun 1, 2012) ##
+
+*   No changes.
+
+
+## Rails 3.2.4 (May 31, 2012) ##
+
+*   No changes.
+
+
+## Rails 3.2.3 (March 30, 2012) ##
+
+*   No changes.
+
+
+## Rails 3.2.2 (March 1, 2012) ##
+
+*   No changes.
+
+
 ## Rails 3.2.1 (January 26, 2012) ##
 
 *   Documentation fixes.

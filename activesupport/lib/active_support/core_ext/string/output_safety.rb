@@ -3,11 +3,10 @@ require 'active_support/core_ext/kernel/singleton_class'
 
 class ERB
   module Util
-    HTML_ESCAPE = { '&' => '&amp;',  '>' => '&gt;',   '<' => '&lt;', '"' => '&quot;' }
+    HTML_ESCAPE = { '&' => '&amp;',  '>' => '&gt;',   '<' => '&lt;', '"' => '&quot;', "'" => '&#x27;' }
     JSON_ESCAPE = { '&' => '\u0026', '>' => '\u003E', '<' => '\u003C' }
 
-    # Detect whether 1.9 can transcode with XML escaping.
-    if '"&gt;&lt;&amp;&quot;"' == ('><&"'.encode('utf-8', :xml => :attr) rescue false)
+    if RUBY_VERSION >= '1.9'
       # A utility method for escaping HTML tag characters.
       # This method is also aliased as <tt>h</tt>.
       #
@@ -22,7 +21,7 @@ class ERB
         if s.html_safe?
           s
         else
-          s.encode(s.encoding, :xml => :attr)[1...-1].html_safe
+          s.gsub(/[&"'><]/, HTML_ESCAPE).html_safe
         end
       end
     else
@@ -31,7 +30,7 @@ class ERB
         if s.html_safe?
           s
         else
-          s.gsub(/[&"><]/n) { |special| HTML_ESCAPE[special] }.html_safe
+          s.gsub(/[&"'><]/n) { |special| HTML_ESCAPE[special] }.html_safe
         end
       end
     end
@@ -98,29 +97,39 @@ module ActiveSupport #:nodoc:
       end
     end
 
-    def[](*args)
-      new_safe_buffer = super
-      new_safe_buffer.instance_eval { @dirty = false }
-      new_safe_buffer
+    def [](*args)
+      return super if args.size < 2
+
+      if html_safe?
+        new_safe_buffer = super
+        new_safe_buffer.instance_eval { @html_safe = true }
+        new_safe_buffer
+      else
+        to_str[*args]
+      end
     end
 
     def safe_concat(value)
-      raise SafeConcatError if dirty?
+      raise SafeConcatError unless html_safe?
       original_concat(value)
     end
 
     def initialize(*)
-      @dirty = false
+      @html_safe = true
       super
     end
 
     def initialize_copy(other)
       super
-      @dirty = other.dirty?
+      @html_safe = other.html_safe?
+    end
+
+    def clone_empty
+      self[0, 0]
     end
 
     def concat(value)
-      if dirty? || value.html_safe?
+      if !html_safe? || value.html_safe?
         super(value)
       else
         super(ERB::Util.h(value))
@@ -133,7 +142,7 @@ module ActiveSupport #:nodoc:
     end
 
     def html_safe?
-      !dirty?
+      defined?(@html_safe) && @html_safe
     end
 
     def to_s
@@ -161,17 +170,11 @@ module ActiveSupport #:nodoc:
           end                                       # end
 
           def #{unsafe_method}!(*args)              # def capitalize!(*args)
-            @dirty = true                           #   @dirty = true
+            @html_safe = false                      #   @html_safe = false
             super                                   #   super
           end                                       # end
         EOT
       end
-    end
-
-    protected
-
-    def dirty?
-      @dirty
     end
   end
 end

@@ -61,7 +61,11 @@ end
 
 class Weird < ActiveRecord::Base; end
 
-class Boolean < ActiveRecord::Base; end
+class Boolean < ActiveRecord::Base
+  def has_fun
+    super
+  end
+end
 
 class LintTest < ActiveRecord::TestCase
   include ActiveModel::Lint::Tests
@@ -930,6 +934,16 @@ class BasicsTest < ActiveRecord::TestCase
     assert b_true.value?
   end
 
+  def test_boolean_without_questionmark
+    b_true = Boolean.create({ "value" => true })
+    true_id = b_true.id
+
+    subclass   = Class.new(Boolean).find true_id
+    superclass = Boolean.find true_id
+
+    assert_equal superclass.read_attribute(:has_fun), subclass.read_attribute(:has_fun)
+  end
+
   def test_boolean_cast_from_string
     b_blank = Boolean.create({ "value" => "" })
     blank_id = b_blank.id
@@ -1263,6 +1277,15 @@ class BasicsTest < ActiveRecord::TestCase
     assert_equal({ :foo => :bar }, t.content_before_type_cast)
     t.save!
     t.reload
+    assert_equal({ :foo => :bar }, t.content_before_type_cast)
+  end
+
+  def test_serialized_attribute_calling_dup_method
+    klass = Class.new(ActiveRecord::Base)
+    klass.table_name = "topics"
+    klass.serialize :content, JSON
+
+    t = klass.new(:content => { :foo => :bar }).dup
     assert_equal({ :foo => :bar }, t.content_before_type_cast)
   end
 
@@ -1895,6 +1918,12 @@ class BasicsTest < ActiveRecord::TestCase
     assert_kind_of String, Client.find(:first).to_param
   end
 
+  def test_to_param_returns_id_even_if_not_persisted
+    client = Client.new
+    client.id = 1
+    assert_equal "1", client.to_param
+  end
+
   def test_inspect_class
     assert_equal 'ActiveRecord::Base', ActiveRecord::Base.inspect
     assert_equal 'LoosePerson(abstract)', LoosePerson.inspect
@@ -1985,9 +2014,7 @@ class BasicsTest < ActiveRecord::TestCase
     original_logger = ActiveRecord::Base.logger
     log = StringIO.new
     ActiveRecord::Base.logger = Logger.new(log)
-    assert_deprecated do
-      ActiveRecord::Base.benchmark("Logging", :level => :debug, :silence => true) { ActiveRecord::Base.logger.debug "Loud" }
-    end
+    ActiveRecord::Base.benchmark("Logging", :level => :debug, :silence => true) { ActiveRecord::Base.logger.debug "Loud" }
     ActiveRecord::Base.benchmark("Logging", :level => :debug, :silence => false)  { ActiveRecord::Base.logger.debug "Quiet" }
     assert_no_match(/Loud/, log.string)
     assert_match(/Quiet/, log.string)
@@ -2113,7 +2140,7 @@ class BasicsTest < ActiveRecord::TestCase
 
   def test_cache_key_format_for_existing_record_with_nil_updated_at
     dev = Developer.first
-    dev.update_attribute(:updated_at, nil)
+    dev.update_column(:updated_at, nil)
     assert_match(/\/#{dev.id}$/, dev.cache_key)
   end
 

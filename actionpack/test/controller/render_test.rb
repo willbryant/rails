@@ -170,7 +170,7 @@ class TestController < ActionController::Base
 
   # :ported:
   def render_text_hello_world_with_layout
-    @variable_for_layout = ", I'm here!"
+    @variable_for_layout = ", I am here!"
     render :text => "hello world", :layout => true
   end
 
@@ -495,6 +495,14 @@ class TestController < ActionController::Base
     render :text => "hello world!"
   end
 
+  def head_created
+    head :created
+  end
+
+  def head_created_with_application_json_content_type
+    head :created, :content_type => "application/json"
+  end
+
   def head_with_location_header
     head :location => "/foo"
   end
@@ -543,10 +551,31 @@ class TestController < ActionController::Base
     render :partial => 'partial'
   end
 
+  def partial_html_erb
+    render :partial => 'partial_html_erb'
+  end
+
   def render_to_string_with_partial
     @partial_only = render_to_string :partial => "partial_only"
     @partial_with_locals = render_to_string :partial => "customer", :locals => { :customer => Customer.new("david") }
     render :template => "test/hello_world"
+  end
+
+  def render_to_string_with_template_and_html_partial
+    @text = render_to_string :template => "test/with_partial", :formats => [:text]
+    @html = render_to_string :template => "test/with_partial", :formats => [:html]
+    render :template => "test/with_html_partial"
+  end
+
+  def render_to_string_and_render_with_different_formats
+    @html = render_to_string :template => "test/with_partial", :formats => [:html]
+    render :template => "test/with_partial", :formats => [:text]
+  end
+
+  def render_template_within_a_template_with_other_format
+    render  :template => "test/with_xml_template",
+            :formats  => [:html],
+            :layout   => "with_html_partial"
   end
 
   def partial_with_counter
@@ -689,6 +718,14 @@ class TestController < ActionController::Base
     end
 end
 
+class MetalTestController < ActionController::Metal
+  include ActionController::Rendering
+
+  def accessing_logger_in_template
+    render :inline =>  "<%= logger.class %>"
+  end
+end
+
 class RenderTest < ActionController::TestCase
   tests TestController
 
@@ -794,7 +831,7 @@ class RenderTest < ActionController::TestCase
   # :ported:
   def test_do_with_render_text_and_layout
     get :render_text_hello_world_with_layout
-    assert_equal "<html>hello world, I'm here!</html>", @response.body
+    assert_equal "<html>hello world, I am here!</html>", @response.body
   end
 
   # :ported:
@@ -996,6 +1033,7 @@ class RenderTest < ActionController::TestCase
   def test_accessing_local_assigns_in_inline_template
     get :accessing_local_assigns_in_inline_template, :local_name => "Local David"
     assert_equal "Goodbye, Local David", @response.body
+    assert_equal "text/html", @response.content_type
   end
 
   def test_should_implicitly_render_html_template_from_xhr_request
@@ -1150,6 +1188,19 @@ class RenderTest < ActionController::TestCase
     assert_equal "<html>\n  <p>Hello</p>\n</html>\n", @response.body
   end
 
+  def test_head_created
+    post :head_created
+    assert_blank @response.body
+    assert_response :created
+  end
+
+  def test_head_created_with_application_json_content_type
+    post :head_created_with_application_json_content_type
+    assert_blank @response.body
+    assert_equal "application/json", @response.content_type
+    assert_response :created
+  end
+
   def test_head_with_location_header
     get :head_with_location_header
     assert_blank @response.body
@@ -1241,22 +1292,57 @@ class RenderTest < ActionController::TestCase
   def test_partial_only
     get :partial_only
     assert_equal "only partial", @response.body
+    assert_equal "text/html", @response.content_type
   end
 
   def test_should_render_html_formatted_partial
     get :partial
-    assert_equal 'partial html', @response.body
+    assert_equal "partial html", @response.body
+    assert_equal "text/html", @response.content_type
+  end
+
+  def test_render_html_formatted_partial_even_with_other_mime_time_in_accept
+    @request.accept = "text/javascript, text/html"
+
+    get :partial_html_erb
+
+    assert_equal "partial.html.erb", @response.body.strip
+    assert_equal "text/html", @response.content_type
   end
 
   def test_should_render_html_partial_with_formats
     get :partial_formats_html
-    assert_equal 'partial html', @response.body
+    assert_equal "partial html", @response.body
+    assert_equal "text/html", @response.content_type
   end
 
   def test_render_to_string_partial
     get :render_to_string_with_partial
     assert_equal "only partial", assigns(:partial_only)
     assert_equal "Hello: david", assigns(:partial_with_locals)
+    assert_equal "text/html", @response.content_type
+  end
+
+  def test_render_to_string_with_template_and_html_partial
+    get :render_to_string_with_template_and_html_partial
+    assert_equal "**only partial**\n", assigns(:text)
+    assert_equal "<strong>only partial</strong>\n", assigns(:html)
+    assert_equal "<strong>only html partial</strong>\n", @response.body
+    assert_equal "text/html", @response.content_type
+  end
+
+  def test_render_to_string_and_render_with_different_formats
+    get :render_to_string_and_render_with_different_formats
+    assert_equal "<strong>only partial</strong>\n", assigns(:html)
+    assert_equal "**only partial**\n", @response.body
+    assert_equal "text/plain", @response.content_type
+  end
+
+  def test_render_template_within_a_template_with_other_format
+    get :render_template_within_a_template_with_other_format
+    expected = "only html partial<p>This is grand!</p>"
+    assert_equal expected, @response.body.strip
+    assert_equal "text/html", @response.content_type
   end
 
   def test_partial_with_counter
@@ -1503,5 +1589,14 @@ class LastModifiedRenderTest < ActionController::TestCase
     @request.if_modified_since = 5.years.ago.httpdate
     get :conditional_hello_with_bangs
     assert_response :success
+  end
+end
+
+class MetalRenderTest < ActionController::TestCase
+  tests MetalTestController
+
+  def test_access_to_logger_in_view
+    get :accessing_logger_in_template
+    assert_equal "NilClass", @response.body
   end
 end

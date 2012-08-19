@@ -31,7 +31,7 @@ module Sprockets
           else
             super(source.to_s, { :src => path_to_asset(source, :ext => 'js', :body => body, :digest => digest) }.merge!(options))
           end
-        end.join("\n").html_safe
+        end.uniq.join("\n").html_safe
       end
 
       def stylesheet_link_tag(*sources)
@@ -48,7 +48,7 @@ module Sprockets
           else
             super(source.to_s, { :href => path_to_asset(source, :ext => 'css', :body => body, :protocol => :request, :digest => digest) }.merge!(options))
           end
-        end.join("\n").html_safe
+        end.uniq.join("\n").html_safe
       end
 
       def asset_path(source, options = {})
@@ -81,7 +81,7 @@ module Sprockets
     private
       def debug_assets?
         compile_assets? && (Rails.application.config.assets.debug || params[:debug_assets])
-      rescue NoMethodError
+      rescue NameError
         false
       end
 
@@ -155,8 +155,14 @@ module Sprockets
         end
 
         def rewrite_extension(source, dir, ext)
-          if ext && File.extname(source) != ".#{ext}"
-            "#{source}.#{ext}"
+          source_ext = File.extname(source)
+          if ext && source_ext != ".#{ext}"
+            if !source_ext.empty? && (asset = asset_environment[source]) &&
+                  asset.pathname.to_s =~ /#{source}\Z/
+              source
+            else
+              "#{source}.#{ext}"
+            end
           else
             source
           end

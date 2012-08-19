@@ -34,6 +34,8 @@ module ActionDispatch
           }
 
           return true
+        ensure
+          req.reset_parameters
         end
 
         def call(env)
@@ -236,7 +238,7 @@ module ActionDispatch
       # for root cases, where the latter is the correct one.
       def self.normalize_path(path)
         path = Journey::Router::Utils.normalize_path(path)
-        path.gsub!(%r{/(\(+)/?}, '\1/') unless path =~ %r{^/\(+[^/]+\)$}
+        path.gsub!(%r{/(\(+)/?}, '\1/') unless path =~ %r{^/\(+[^)]+\)$}
         path
       end
 
@@ -325,7 +327,7 @@ module ActionDispatch
         #   +call+ or a string representing a controller's action.
         #
         #      match 'path', :to => 'controller#action'
-        #      match 'path', :to => lambda { [200, {}, "Success!"] }
+        #      match 'path', :to => lambda { |env| [200, {}, "Success!"] }
         #      match 'path', :to => RackApp
         #
         # [:on]

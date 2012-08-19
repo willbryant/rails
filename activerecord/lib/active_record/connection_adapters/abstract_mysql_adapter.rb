@@ -1,4 +1,5 @@
 require 'active_support/core_ext/object/blank'
+require 'arel/visitors/bind_visitor'
 
 module ActiveRecord
   module ConnectionAdapters
@@ -71,6 +72,8 @@ module ActiveRecord
           when /^mediumint/i; 3
           when /^smallint/i;  2
           when /^tinyint/i;   1
+          when /^enum\((.+)\)/i
+            $1.split(',').map{|enum| enum.strip.length - 2}.max
           else
             super
           end
@@ -122,12 +125,21 @@ module ActiveRecord
         :boolean     => { :name => "tinyint", :limit => 1 }
       }
 
+      class BindSubstitution < Arel::Visitors::MySQL # :nodoc:
+        include Arel::Visitors::BindVisitor
+      end
+
       # FIXME: Make the first parameter more similar for the two adapters
       def initialize(connection, logger, connection_options, config)
         super(connection, logger)
         @connection_options, @config = connection_options, config
         @quoted_column_names, @quoted_table_names = {}, {}
-        @visitor = Arel::Visitors::MySQL.new self
+
+        if config.fetch(:prepared_statements) { true }
+          @visitor = Arel::Visitors::MySQL.new self
+        else
+          @visitor = BindSubstitution.new self
+        end
       end
 
       def adapter_name #:nodoc:
@@ -315,7 +327,7 @@ module ActiveRecord
         select_all(sql).map { |table|
           table.delete('Table_type')
           sql = "SHOW CREATE TABLE #{quote_table_name(table.to_a.first.last)}"
-          exec_without_stmt(sql).first['Create Table'] + ";\n\n"
+          exec_query(sql).first['Create Table'] + ";\n\n"
         }.join
       end
 
@@ -365,7 +377,7 @@ module ActiveRecord
 
       def tables(name = nil, database = nil, like = nil) #:nodoc:
         sql = "SHOW TABLES "
-        sql << "IN #{database} " if database
+        sql << "IN #{quote_table_name(database)} " if database
         sql << "LIKE #{quote(like)}" if like
 
         execute_and_free(sql, 'SCHEMA') do |result|
@@ -427,7 +439,7 @@ module ActiveRecord
           table, arguments = args.shift, args
           method = :"#{command}_sql"
 
-          if respond_to?(method)
+          if respond_to?(method, true)
             send(method, table, *arguments)
           else
             raise "Unknown method called : #{method}(#{arguments.inspect})"
@@ -474,15 +486,26 @@ module ActiveRecord
 
       # Maps logical Rails types to MySQL-specific data types.
       def type_to_sql(type, limit = nil, precision = nil, scale = nil)
-        return super unless type.to_s == 'integer'
-
-        case limit
-        when 1; 'tinyint'
-        when 2; 'smallint'
-        when 3; 'mediumint'
-        when nil, 4, 11; 'int(11)'  # compatibility with MySQL default
-        when 5..8; 'bigint'
-        else raise(ActiveRecordError, "No integer type has byte size #{limit}")
+        case type.to_s
+        when 'integer'
+          case limit
+          when 1; 'tinyint'
+          when 2; 'smallint'
+          when 3; 'mediumint'
+          when nil, 4, 11; 'int(11)'  # compatibility with MySQL default
+          when 5..8; 'bigint'
+          else raise(ActiveRecordError, "No integer type has byte size #{limit}")
+          end
+        when 'text'
+          case limit
+          when 0..0xff;               'tinytext'
+          when nil, 0x100..0xffff;    'text'
+          when 0x10000..0xffffff;     'mediumtext'
+          when 0x1000000..0xffffffff; 'longtext'
+          else raise(ActiveRecordError, "No text type has character length #{limit}")
+          end
+        else
+          super
         end
       end
 
@@ -504,7 +527,7 @@ module ActiveRecord
       def pk_and_sequence_for(table)
         execute_and_free("SHOW CREATE TABLE #{quote_table_name(table)}", 'SCHEMA') do |result|
           create_table = each_hash(result).first[:"Create Table"]
-          if create_table.to_s =~ /PRIMARY KEY\s+\((.+)\)/
+          if create_table.to_s =~ /PRIMARY KEY\s+(?:USING\s+\w+\s+)?\((.+)\)/
             keys = $1.split(",").map { |key| key.gsub(/[`"]/, "") }
             keys.length == 1 ? [keys.first, nil] : nil
           else

@@ -98,7 +98,6 @@ class UrlHelperTest < ActiveSupport::TestCase
       button_to("Hello", "http://www.example.com", :remote => true, :confirm => "Are you sure?")
     )
   end
-
   def test_button_to_with_remote_and_javascript_disable_with
     assert_dom_equal(
       "<form method=\"post\" action=\"http://www.example.com\" class=\"button_to\" data-remote=\"true\"><div><input data-disable-with=\"Greeting...\" type=\"submit\" value=\"Hello\" /></div></form>",
@@ -195,7 +194,7 @@ class UrlHelperTest < ActiveSupport::TestCase
 
   def test_link_tag_with_custom_onclick
     link = link_to("Hello", "http://www.example.com", :onclick => "alert('yay!')")
-    expected = %{<a href="http://www.example.com" onclick="alert('yay!')">Hello</a>}
+    expected = %{<a href="http://www.example.com" onclick="alert(&#x27;yay!&#x27;)">Hello</a>}
     assert_dom_equal expected, link
   end
 
@@ -205,12 +204,12 @@ class UrlHelperTest < ActiveSupport::TestCase
       link_to("Hello", "http://www.example.com", :confirm => "Are you sure?")
     )
     assert_dom_equal(
-      "<a href=\"http://www.example.com\" data-confirm=\"You can't possibly be sure, can you?\">Hello</a>",
-      link_to("Hello", "http://www.example.com", :confirm => "You can't possibly be sure, can you?")
+      "<a href=\"http://www.example.com\" data-confirm=\"You cant possibly be sure, can you?\">Hello</a>",
+      link_to("Hello", "http://www.example.com", :confirm => "You cant possibly be sure, can you?")
     )
     assert_dom_equal(
-      "<a href=\"http://www.example.com\" data-confirm=\"You can't possibly be sure,\n can you?\">Hello</a>",
-      link_to("Hello", "http://www.example.com", :confirm => "You can't possibly be sure,\n can you?")
+      "<a href=\"http://www.example.com\" data-confirm=\"You cant possibly be sure,\n can you?\">Hello</a>",
+      link_to("Hello", "http://www.example.com", :confirm => "You cant possibly be sure,\n can you?")
     )
   end
 
@@ -548,7 +547,7 @@ class UrlHelperControllerTest < ActionController::TestCase
 
   def test_named_route_should_show_host_and_path_using_controller_default_url_options
     class << @controller
-      def default_url_options(options = nil)
+      def default_url_options
         {:host => 'testtwo.host'}
       end
     end

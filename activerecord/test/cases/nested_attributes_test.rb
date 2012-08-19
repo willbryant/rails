@@ -624,9 +624,13 @@ module NestedAttributesOnACollectionAssociationTests
   end
 
   def test_should_automatically_build_new_associated_models_for_each_entry_in_a_hash_where_the_id_is_missing
+    attributes = ActiveSupport::OrderedHash.new
+    attributes['foo'] = { :name => 'Grace OMalley' }
+    attributes['bar'] = { :name => 'Privateers Greed' }
+
     @pirate.send(@association_name).destroy_all
     @pirate.reload.attributes = {
-      association_getter => { 'foo' => { :name => 'Grace OMalley' }, 'bar' => { :name => 'Privateers Greed' }}
+      association_getter => attributes
     }
 
     assert !@pirate.send(@association_name).first.persisted?
@@ -768,6 +772,16 @@ module NestedAttributesOnACollectionAssociationTests
     assert_nothing_raised(NoMethodError) { @pirate.save! }
   end
 
+  def test_numeric_colum_changes_from_zero_to_no_empty_string
+    Man.accepts_nested_attributes_for(:interests)
+    Interest.validates_numericality_of(:zine_id)
+    man = Man.create(:name => 'John')
+    interest = man.interests.create(:topic=>'bar',:zine_id => 0)
+    assert  interest.save
+
+    assert  !man.update_attributes({:interests_attributes => { :id => interest.id, :zine_id => 'foo' }})
+  end
+
   private
 
   def association_setter
@@ -872,7 +886,7 @@ class TestNestedAttributesWithNonStandardPrimaryKeys < ActiveRecord::TestCase
 
   def test_should_update_existing_records_with_non_standard_primary_key
     @owner.update_attributes(@params)
-    assert_equal ['Foo', 'Bar'], @owner.pets.map(&:name)
+    assert_equal %w(Bar Foo), @owner.pets.map(&:name).sort
   end
 
   def test_attr_accessor_of_child_should_be_value_provided_during_update_attributes

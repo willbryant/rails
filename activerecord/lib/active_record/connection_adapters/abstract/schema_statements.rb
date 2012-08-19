@@ -160,7 +160,7 @@ module ActiveRecord
         yield td if block_given?
 
         if options[:force] && table_exists?(table_name)
-          drop_table(table_name)
+          drop_table(table_name, options)
         end
 
         create_sql = "CREATE#{' TEMPORARY' if options[:temporary]} TABLE "
@@ -252,7 +252,7 @@ module ActiveRecord
       end
 
       # Drops a table from the database.
-      def drop_table(table_name)
+      def drop_table(table_name, options = {})
         execute "DROP TABLE #{quote_table_name(table_name)}"
       end
 
@@ -269,7 +269,15 @@ module ActiveRecord
       #  remove_column(:suppliers, :qualification)
       #  remove_columns(:suppliers, :qualification, :experience)
       def remove_column(table_name, *column_names)
-        columns_for_remove(table_name, *column_names).each {|column_name| execute "ALTER TABLE #{quote_table_name(table_name)} DROP #{column_name}" }
+        if column_names.flatten!
+          message = 'Passing array to remove_columns is deprecated, please use ' +
+                    'multiple arguments, like: `remove_columns(:posts, :foo, :bar)`'
+          ActiveSupport::Deprecation.warn message, caller
+        end
+
+        columns_for_remove(table_name, *column_names).each do |column_name|
+          execute "ALTER TABLE #{quote_table_name(table_name)} DROP #{column_name}"
+        end
       end
       alias :remove_columns :remove_column
 
@@ -508,8 +516,8 @@ module ActiveRecord
       # ===== Examples
       #  add_timestamps(:suppliers)
       def add_timestamps(table_name)
-        add_column table_name, :created_at, :datetime, :null => false
-        add_column table_name, :updated_at, :datetime, :null => false
+        add_column table_name, :created_at, :datetime
+        add_column table_name, :updated_at, :datetime
       end
 
       # Removes the timestamp columns (created_at and updated_at) from the table definition.

@@ -75,6 +75,7 @@ ActiveRecord::Schema.define do
   create_table :binaries, :force => true do |t|
     t.string :name
     t.binary :data
+    t.binary :short_data, :limit => 2048
   end
 
   create_table :birds, :force => true do |t|
@@ -90,6 +91,7 @@ ActiveRecord::Schema.define do
 
   create_table :booleans, :force => true do |t|
     t.boolean :value
+    t.boolean :has_fun, :null => false, :default => false
   end
 
   create_table :bulbs, :force => true do |t|

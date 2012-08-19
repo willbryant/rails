@@ -17,6 +17,10 @@ module ActionView
                            autofocus novalidate formnovalidate open pubdate).to_set
       BOOLEAN_ATTRIBUTES.merge(BOOLEAN_ATTRIBUTES.map {|attribute| attribute.to_sym })
 
+      PRE_CONTENT_STRINGS = {
+        :textarea => "\n"
+      }
+
       # Returns an empty HTML tag of type +name+ which by default is XHTML
       # compliant. Set +open+ to true to create an open tag compatible
       # with HTML 4.0 and below. Add HTML attributes by passing an attributes
@@ -125,7 +129,7 @@ module ActionView
 
         def content_tag_string(name, content, options, escape = true)
           tag_options = tag_options(options, escape) if options
-          "<#{name}#{tag_options}>#{escape ? ERB::Util.h(content) : content}</#{name}>".html_safe
+          "<#{name}#{tag_options}>#{PRE_CONTENT_STRINGS[name.to_sym]}#{escape ? ERB::Util.h(content) : content}</#{name}>".html_safe
         end
 
         def tag_options(options, escape = true)
@@ -134,7 +138,7 @@ module ActionView
             options.each_pair do |key, value|
               if key.to_s == 'data' && value.is_a?(Hash)
                 value.each do |k, v|
-                  if !v.is_a?(String) && !v.is_a?(Symbol)
+                  unless v.is_a?(String) || v.is_a?(Symbol) || v.is_a?(BigDecimal)
                     v = v.to_json
                   end
                   v = ERB::Util.html_escape(v) if escape

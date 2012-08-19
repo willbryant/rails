@@ -63,7 +63,12 @@ class TestRoutingMapper < ActionDispatch::IntegrationTest
       match 'secure', :to => redirect("/secure/login")
 
       match 'mobile', :to => redirect(:subdomain => 'mobile')
+      match 'documentation', :to => redirect(:domain => 'example-documentation.com', :path => '')
+      match 'new_documentation', :to => redirect(:path => '/documentation/new')
       match 'super_new_documentation', :to => redirect(:host => 'super-docs.com')
+
+      match 'stores/:name',        :to => redirect(:subdomain => 'stores', :path => '/%{name}')
+      match 'stores/:name(*rest)', :to => redirect(:subdomain => 'stores', :path => '/%{name}%{rest}')
 
       match 'youtube_favorites/:youtube_id/:name', :to => redirect(YoutubeFavoritesRedirector)
 
@@ -694,6 +699,21 @@ class TestRoutingMapper < ActionDispatch::IntegrationTest
   def test_redirect_proc
     with_test_routes do
       get '/account/proc/person'
+
+      verify_redirect 'http://www.example.com/people'
+    end
+  end
+
+  def test_redirect_deprecated_proc
+    assert_deprecated do
+      self.class.stub_controllers do |routes|
+        routes.draw { match 'account/deprecated_proc/:name', :to => redirect {|params| "/#{params[:name].pluralize}" } }
+      end
+    end
+
+    with_test_routes do
+      get '/account/proc/person'
+
       verify_redirect 'http://www.example.com/people'
     end
   end
@@ -712,10 +732,38 @@ class TestRoutingMapper < ActionDispatch::IntegrationTest
     end
   end
 
+  def test_redirect_hash_with_domain_and_path
+    with_test_routes do
+      get '/documentation'
+      verify_redirect 'http://www.example-documentation.com'
+    end
+  end
+
+  def test_redirect_hash_with_path
+    with_test_routes do
+      get '/new_documentation'
+      verify_redirect 'http://www.example.com/documentation/new'
+    end
+  end
+
   def test_redirect_hash_with_host
     with_test_routes do
       get '/super_new_documentation?section=top'
       verify_redirect 'http://super-docs.com/super_new_documentation?section=top'
+    end
+  end
+
+  def test_redirect_hash_path_substitution
+    with_test_routes do
+      get '/stores/iernest'
+      verify_redirect 'http://stores.example.com/iernest'
+    end
+  end
+
+  def test_redirect_hash_path_substitution_with_catch_all
+    with_test_routes do
+      get '/stores/iernest/products'
+      verify_redirect 'http://stores.example.com/iernest/products'
     end
   end
 
@@ -2574,7 +2622,6 @@ class TestUnicodePaths < ActionDispatch::IntegrationTest
   Routes = ActionDispatch::Routing::RouteSet.new.tap do |app|
     app.draw do
       match "/#{Rack::Utils.escape("ほげ")}" => lambda { |env|
-        path_params = env['action_dispatch.request.path_parameters']
         [200, { 'Content-Type' => 'text/plain' }, []]
       }, :as => :unicode_path
     end
@@ -2621,3 +2668,116 @@ class TestMultipleNestedController < ActionDispatch::IntegrationTest
 
 end
 
+class TestRedirectInterpolation < ActionDispatch::IntegrationTest
+  Routes = ActionDispatch::Routing::RouteSet.new.tap do |app|
+    app.draw do
+      ok = lambda { |env| [200, { 'Content-Type' => 'text/plain' }, []] }
+
+      get "/foo/:id" => redirect("/foo/bar/%{id}")
+      get "/bar/:id" => redirect(:path => "/foo/bar/%{id}")
+      get "/foo/bar/:id" => ok
+    end
+  end
+
+  def app; Routes end
+
+  test "redirect escapes interpolated parameters with redirect proc" do
+    get "/foo/1%3E"
+    verify_redirect "http://www.example.com/foo/bar/1%3E"
+  end
+
+  test "redirect escapes interpolated parameters with option proc" do
+    get "/bar/1%3E"
+    verify_redirect "http://www.example.com/foo/bar/1%3E"
+  end
+
+private
+  def verify_redirect(url, status=301)
+    assert_equal status, @response.status
+    assert_equal url, @response.headers['Location']
+    assert_equal expected_redirect_body(url), @response.body
+  end
+
+  def expected_redirect_body(url)
+    %(<html><body>You are being <a href="#{ERB::Util.h(url)}">redirected</a>.</body></html>)
+  end
+end
+
+class TestConstraintsAccessingParameters < ActionDispatch::IntegrationTest
+  Routes = ActionDispatch::Routing::RouteSet.new.tap do |app|
+    app.draw do
+      ok = lambda { |env| [200, { 'Content-Type' => 'text/plain' }, []] }
+
+      get "/:foo" => ok, :constraints => lambda { |r| r.params[:foo] == 'foo' }
+      get "/:bar" => ok
+    end
+  end
+
+  def app; Routes end
+
+  test "parameters are reset between constraint checks" do
+    get "/bar"
+    assert_equal nil, @request.params[:foo]
+    assert_equal "bar", @request.params[:bar]
+  end
+end
+
+class TestNamedRouteUrlHelpers < ActionDispatch::IntegrationTest
+  class CategoriesController < ActionController::Base
+    def show
+      render :text => "categories#show"
+    end
+  end
+
+  class ProductsController < ActionController::Base
+    def show
+      render :text => "products#show"
+    end
+  end
+
+  Routes = ActionDispatch::Routing::RouteSet.new.tap do |app|
+    app.draw do
+      scope :module => "test_named_route_url_helpers" do
+        get "/categories/:id" => 'categories#show', :as => :category
+        get "/products/:id" => 'products#show', :as => :product
+      end
+    end
+  end
+
+  def app; Routes end
+
+  include Routes.url_helpers
+
+  test "url helpers do not ignore nil parameters" do
+    get "/categories/1"
+    assert_response :success
+    assert_raises(ActionController::RoutingError) { product_path(nil) }
+  end
+end
+
+class TestOptionalRootSegments < ActionDispatch::IntegrationTest
+  stub_controllers do |routes|
+    Routes = routes
+    Routes.draw do
+      get '/(page/:page)', :to => 'pages#index', :as => :root
+    end
+  end
+
+  def app
+    Routes
+  end
+
+  include Routes.url_helpers
+
+  def test_optional_root_segments
+    get '/'
+    assert_equal 'pages#index', @response.body
+    assert_equal '/', root_path
+
+    get '/page/1'
+    assert_equal 'pages#index', @response.body
+    assert_equal '1', @request.params[:page]
+    assert_equal '/page/1', root_path('1')
+    assert_equal '/page/1', root_path(:page => '1')
+  end
+end

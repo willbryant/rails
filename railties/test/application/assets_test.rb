@@ -110,6 +110,15 @@ module ApplicationTests
       assert !File.exists?("#{app_path}/public/assets/something.else.css")
     end
 
+    test "precompile something.js for directory containing index file" do
+      add_to_config "config.assets.precompile = [ 'something.js' ]"
+      app_file "app/assets/javascripts/something/index.js.erb", "alert();"
+
+      precompile!
+
+      assert File.exists?("#{app_path}/public/assets/something.js")
+    end
+
     test "asset pipeline should use a Sprockets::Index when config.assets.digest is true" do
       add_to_config "config.assets.digest = true"
       add_to_config "config.action_controller.perform_caching = false"
@@ -221,7 +230,7 @@ module ApplicationTests
 
       get '/posts'
       assert_match(/AssetNotPrecompiledError/, last_response.body)
-      assert_match(/app.js isn't precompiled/, last_response.body)
+      assert_match(/app.js isn&#x27;t precompiled/, last_response.body)
     end
 
     test "assets raise AssetNotPrecompiledError when manifest file is present and requested file isn't precompiled if digest is disabled" do
@@ -245,7 +254,7 @@ module ApplicationTests
 
       get '/posts'
       assert_match(/AssetNotPrecompiledError/, last_response.body)
-      assert_match(/app.js isn't precompiled/, last_response.body)
+      assert_match(/app.js isn&#x27;t precompiled/, last_response.body)
     end
 
     test "precompile properly refers files referenced with asset_path and and run in the provided RAILS_ENV" do
@@ -490,6 +499,18 @@ module ApplicationTests
       precompile!
 
       assert_match 'src="/sub/uri/assets/rails.png"', File.read("#{app_path}/public/assets/app.js")
+    end
+
+    test "html assets are compiled when executing precompile" do
+      app_file "app/assets/pages/page.html.erb", "<%= javascript_include_tag :application %>"
+      ENV["RAILS_ENV"]   = "production"
+      ENV["RAILS_GROUP"] = "assets"
+
+      quietly do
+        Dir.chdir(app_path){ `bundle exec rake assets:precompile` }
+      end
+
+      assert File.exists?("#{app_path}/public/assets/page.html")
     end
 
     private

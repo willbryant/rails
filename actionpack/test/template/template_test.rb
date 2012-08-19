@@ -11,6 +11,8 @@ class TestERBTemplate < ActiveSupport::TestCase
 
     def find_template(*args)
     end
+
+    attr_accessor :formats
   end
 
   class Context
@@ -77,7 +79,7 @@ class TestERBTemplate < ActiveSupport::TestCase
   def test_locals
     @template = new_template("<%= my_local %>")
     @template.locals = [:my_local]
-    assert_equal "I'm a local", render(:my_local => "I'm a local")
+    assert_equal "I am a local", render(:my_local => "I am a local")
   end
 
   def test_restores_buffer

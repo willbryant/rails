@@ -626,7 +626,9 @@ class TestDestroyAsPartOfAutosaveAssociation < ActiveRecord::TestCase
   def test_a_child_marked_for_destruction_should_not_be_destroyed_twice
     @pirate.ship.mark_for_destruction
     assert @pirate.save
-    @pirate.ship.expects(:destroy).never
+    class << @pirate.ship
+      def destroy; raise "Should not be called" end
+    end
     assert @pirate.save
   end
 
@@ -671,7 +673,9 @@ class TestDestroyAsPartOfAutosaveAssociation < ActiveRecord::TestCase
   def test_a_parent_marked_for_destruction_should_not_be_destroyed_twice
     @ship.pirate.mark_for_destruction
     assert @ship.save
-    @ship.pirate.expects(:destroy).never
+    class << @ship.pirate
+      def destroy; raise "Should not be called" end
+    end
     assert @ship.save
   end
 
@@ -764,6 +768,16 @@ class TestDestroyAsPartOfAutosaveAssociation < ActiveRecord::TestCase
 
     assert_raise(RuntimeError) { assert !@pirate.save }
     assert_equal before, @pirate.reload.birds
+  end
+
+  def test_when_new_record_a_child_marked_for_destruction_should_not_affect_other_records_from_saving
+    @pirate = @ship.build_pirate(:catchphrase => "Arr' now I shall keep me eye on you matey!") # new record
+
+    3.times { |i| @pirate.birds.build(:name => "birds_#{i}") }
+    @pirate.birds[1].mark_for_destruction
+    @pirate.save!
+
+    assert_equal 2, @pirate.birds.reload.length
   end
 
   # Add and remove callbacks tests for association collections.

@@ -9,6 +9,7 @@ require 'active_support/core_ext/module/method_names'
 require 'active_support/core_ext/object/blank'
 require 'active_support/core_ext/string/output_safety'
 require 'active_support/core_ext/array/extract_options'
+require 'active_support/core_ext/string/inflections'
 
 module ActionView
   # = Action View Form Helpers
@@ -656,15 +657,16 @@ module ActionView
       #     'Accept <a href="/terms">Terms</a>.'.html_safe
       #   end
       def label(object_name, method, content_or_options = nil, options = nil, &block)
+        options ||= {}
+
         content_is_options = content_or_options.is_a?(Hash)
         if content_is_options || block_given?
-          options = content_or_options if content_is_options
+          options.merge!(content_or_options) if content_is_options
           text = nil
         else
           text = content_or_options
         end
 
-        options ||= {}
         InstanceTag.new(object_name, method, self, options.delete(:object)).to_label_tag(text, options, &block)
       end
 
@@ -958,8 +960,13 @@ module ActionView
             object_name = ActiveModel::Naming.param_key(object)
           end
 
-          builder = options[:builder] || ActionView::Base.default_form_builder
+          builder = options[:builder] || default_form_builder
           builder.new(object_name, object, self, options, block)
+        end
+
+        def default_form_builder
+          builder = ActionView::Base.default_form_builder
+          builder.respond_to?(:constantize) ? builder.constantize : builder
         end
     end
 
@@ -1072,7 +1079,7 @@ module ActionView
           options["cols"], options["rows"] = size.split("x") if size.respond_to?(:split)
         end
 
-        content_tag("textarea", ERB::Util.html_escape(options.delete('value') || value_before_type_cast(object)), options)
+        content_tag("textarea", options.delete('value') || value_before_type_cast(object), options)
       end
 
       def to_check_box_tag(options = {}, checked_value = "1", unchecked_value = "0")

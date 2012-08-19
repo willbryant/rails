@@ -185,13 +185,12 @@ module ActiveRecord
     #   Person.exists?(['name LIKE ?', "%#{query}%"])
     #   Person.exists?
     def exists?(id = false)
-      return false if id.nil?
-
       id = id.id if ActiveRecord::Base === id
+      return false if id.nil?
 
       join_dependency = construct_join_dependency_for_association_find
       relation = construct_relation_for_association_find(join_dependency)
-      relation = relation.except(:select, :order).select("1").limit(1)
+      relation = relation.except(:select, :order).select("1 AS one").limit(1)
 
       case id
       when Array, Hash
@@ -201,6 +200,8 @@ module ActiveRecord
       end
 
       connection.select_value(relation, "#{name} Exists") ? true : false
+    rescue ThrowResult
+      false
     end
 
     protected
@@ -208,7 +209,7 @@ module ActiveRecord
     def find_with_associations
       join_dependency = construct_join_dependency_for_association_find
       relation = construct_relation_for_association_find(join_dependency)
-      rows = connection.select_all(relation, 'SQL', relation.bind_values)
+      rows = connection.select_all(relation, 'SQL', relation.bind_values.dup)
       join_dependency.instantiate(rows)
     rescue ThrowResult
       []
@@ -290,7 +291,7 @@ module ActiveRecord
           r.assign_attributes(unprotected_attributes_for_create, :without_protection => true)
         end
         yield(record) if block_given?
-        record.save if match.instantiator == :create
+        record.send(match.save_method) if match.save_record?
       end
 
       record

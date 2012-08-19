@@ -138,5 +138,29 @@ module ApplicationTests
       end
       assert File.exists?(File.join(app_path, 'db', 'my_structure.sql'))
     end
+
+    def test_rake_dump_structure_should_be_called_twice_when_migrate_redo
+      add_to_config "config.active_record.schema_format = :sql"
+
+      output = Dir.chdir(app_path) do
+        `rails g model post title:string;
+         bundle exec rake db:migrate:redo 2>&1 --trace;`
+      end
+
+      # expect only Invoke db:structure:dump (first_time)
+      assert_no_match(/^\*\* Invoke db:structure:dump\s+$/, output)
+    end
+
+    def test_copy_templates
+      Dir.chdir(app_path) do
+        `bundle exec rake rails:templates:copy`
+        %w(controller mailer scaffold).each do |dir|
+          assert File.exists?(File.join(app_path, 'lib', 'templates', 'erb', dir))
+        end
+        %w(controller helper scaffold_controller assets).each do |dir|
+          assert File.exists?(File.join(app_path, 'lib', 'templates', 'rails', dir))
+        end
+      end
+    end
   end
 end

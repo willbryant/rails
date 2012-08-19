@@ -29,7 +29,7 @@ class ActiveModelHelperTest < ActionView::TestCase
 
   def test_text_area_with_errors
     assert_dom_equal(
-      %(<div class="field_with_errors"><textarea cols="40" id="post_body" name="post[body]" rows="20">Back to the hill and over it again!</textarea></div>),
+      %(<div class="field_with_errors"><textarea cols="40" id="post_body" name="post[body]" rows="20">\nBack to the hill and over it again!</textarea></div>),
       text_area("post", "body")
     )
   end
@@ -39,6 +39,19 @@ class ActiveModelHelperTest < ActionView::TestCase
       %(<div class="field_with_errors"><input id="post_author_name" name="post[author_name]" size="30" type="text" value="" /></div>),
       text_field("post", "author_name")
     )
+  end
+
+  def test_select_with_errors
+    assert_dom_equal(
+      %(<div class="field_with_errors"><select name="post[author_name]" id="post_author_name"><option value="a">a</option>\n<option value="b">b</option></select></div>),
+      select("post", "author_name", [:a, :b])
+    )
+  end
+
+  def test_select_with_errors_and_blank_option
+    expected_dom = %(<div class="field_with_errors"><select name="post[author_name]" id="post_author_name"><option value="">Choose one...</option>\n<option value="a">a</option>\n<option value="b">b</option></select></div>)
+    assert_dom_equal(expected_dom, select("post", "author_name", [:a, :b], :include_blank => 'Choose one...'))
+    assert_dom_equal(expected_dom, select("post", "author_name", [:a, :b], :prompt => 'Choose one...'))
   end
 
   def test_date_select_with_errors

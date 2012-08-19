@@ -57,6 +57,14 @@ class PluginNewGeneratorTest < Rails::Generators::TestCase
     assert_file "test/integration/navigation_test.rb", /ActionDispatch::IntegrationTest/
   end
 
+  def test_generating_test_files_in_full_mode_without_unit_test_files
+    run_generator [destination_root, "-T", "--full"]
+
+    assert_no_directory "test/integration/"
+    assert_no_file "test"
+    assert_no_match(/APP_RAKEFILE/, File.read(File.join(destination_root, "Rakefile")))
+  end
+
   def test_ensure_that_plugin_options_are_not_passed_to_app_generator
     FileUtils.cd(Rails.root)
     assert_no_match(/It works from file!.*It works_from_file/, run_generator([destination_root, "-m", "lib/template.rb"]))
@@ -79,6 +87,14 @@ class PluginNewGeneratorTest < Rails::Generators::TestCase
     run_generator([destination_root, "-d", "mysql", "--full"])
     assert_file "test/dummy/config/database.yml", /mysql/
     assert_file "bukkits.gemspec", /mysql/
+  end
+
+  def test_dont_generate_development_dependency
+    run_generator [destination_root, "--skip-active-record"]
+
+    assert_file "bukkits.gemspec" do |contents|
+      assert_no_match(/s.add_development_dependency "sqlite3"/, contents)
+    end
   end
 
   def test_active_record_is_removed_from_frameworks_if_skip_active_record_is_given
@@ -264,12 +280,10 @@ class PluginNewGeneratorTest < Rails::Generators::TestCase
   end
 
 protected
-
   def action(*args, &block)
     silence(:stdout){ generator.send(*args, &block) }
   end
 
-protected
   def default_files
     ::DEFAULT_PLUGIN_FILES
   end

@@ -1,6 +1,7 @@
 require 'active_record/connection_adapters/abstract_adapter'
 require 'active_record/connection_adapters/statement_pool'
 require 'active_support/core_ext/string/encoding'
+require 'arel/visitors/bind_visitor'
 
 module ActiveRecord
   module ConnectionAdapters #:nodoc:
@@ -69,12 +70,21 @@ module ActiveRecord
         end
       end
 
+      class BindSubstitution < Arel::Visitors::SQLite # :nodoc:
+        include Arel::Visitors::BindVisitor
+      end
+
       def initialize(connection, logger, config)
         super(connection, logger)
         @statements = StatementPool.new(@connection,
                                         config.fetch(:statement_limit) { 1000 })
         @config = config
-        @visitor = Arel::Visitors::SQLite.new self
+
+        if config.fetch(:prepared_statements) { true }
+          @visitor = Arel::Visitors::SQLite.new self
+        else
+          @visitor = BindSubstitution.new self
+        end
       end
 
       def adapter_name #:nodoc:
@@ -194,7 +204,7 @@ module ActiveRecord
 
           value = super
           if column.type == :string && value.encoding == Encoding::ASCII_8BIT
-            @logger.error "Binary data inserted for `string` type on column `#{column.name}`"
+            logger.error "Binary data inserted for `string` type on column `#{column.name}`" if logger
             value.encode! 'utf-8'
           end
           value
@@ -210,7 +220,7 @@ module ActiveRecord
       # DATABASE STATEMENTS ======================================
 
       def explain(arel, binds = [])
-        sql = "EXPLAIN QUERY PLAN #{to_sql(arel)}"
+        sql = "EXPLAIN QUERY PLAN #{to_sql(arel, binds)}"
         ExplainPrettyPrinter.new.pp(exec_query(sql, 'EXPLAIN', binds))
       end
 
@@ -397,7 +407,14 @@ module ActiveRecord
 
       def remove_column(table_name, *column_names) #:nodoc:
         raise ArgumentError.new("You must specify at least one column name. Example: remove_column(:people, :first_name)") if column_names.empty?
-        column_names.flatten.each do |column_name|
+
+        if column_names.flatten!
+          message = 'Passing array to remove_columns is deprecated, please use ' +
+                    'multiple arguments, like: `remove_columns(:posts, :foo, :bar)`'
+          ActiveSupport::Deprecation.warn message, caller
+        end
+
+        column_names.each do |column_name|
           alter_table(table_name) do |definition|
             definition.columns.delete(definition[column_name])
           end

@@ -1,6 +1,7 @@
 require 'active_record/connection_adapters/abstract_adapter'
 require 'active_support/core_ext/object/blank'
 require 'active_record/connection_adapters/statement_pool'
+require 'arel/visitors/bind_visitor'
 
 # Make sure we're using pg high enough for PGResult#values
 gem 'pg', '~> 0.11'
@@ -303,11 +304,23 @@ module ActiveRecord
         end
       end
 
+      class BindSubstitution < Arel::Visitors::PostgreSQL # :nodoc:
+        include Arel::Visitors::BindVisitor
+      end
+
       # Initializes and connects a PostgreSQL adapter.
       def initialize(connection, logger, connection_parameters, config)
         super(connection, logger)
+
+        if config.fetch(:prepared_statements) { true }
+          @visitor = Arel::Visitors::PostgreSQL.new self
+        else
+          @visitor = BindSubstitution.new self
+        end
+
+        connection_parameters.delete :prepared_statements
+
         @connection_parameters, @config = connection_parameters, config
-        @visitor = Arel::Visitors::PostgreSQL.new self
 
         # @local_tz is initialized as nil to avoid warnings when connect tries to use it
         @local_tz = nil
@@ -331,7 +344,8 @@ module ActiveRecord
 
       # Is this connection alive and ready for queries?
       def active?
-        @connection.status == PGconn::CONNECTION_OK
+        @connection.query 'SELECT 1'
+        true
       rescue PGError
         false
       end
@@ -520,7 +534,7 @@ module ActiveRecord
       # DATABASE STATEMENTS ======================================
 
       def explain(arel, binds = [])
-        sql = "EXPLAIN #{to_sql(arel)}"
+        sql = "EXPLAIN #{to_sql(arel, binds)}"
         ExplainPrettyPrinter.new.pp(exec_query(sql, 'EXPLAIN', binds))
       end
 
@@ -642,7 +656,7 @@ module ActiveRecord
       end
 
       def substitute_at(column, index)
-        Arel.sql("$#{index + 1}")
+        Arel::Nodes::BindParam.new "$#{index + 1}"
       end
 
       def exec_query(sql, name = 'SQL', binds = [])
@@ -872,7 +886,7 @@ module ActiveRecord
       # This should be not be called manually but set in database.yml.
       def schema_search_path=(schema_csv)
         if schema_csv
-          execute "SET search_path TO #{schema_csv}"
+          execute("SET search_path TO #{schema_csv}", 'SCHEMA')
           @schema_search_path = schema_csv
         end
       end
@@ -932,26 +946,46 @@ module ActiveRecord
       def pk_and_sequence_for(table) #:nodoc:
         # First try looking for a sequence with a dependency on the
         # given table's primary key.
-        result = exec_query(<<-end_sql, 'SCHEMA').rows.first
-          SELECT attr.attname, ns.nspname, seq.relname
-          FROM pg_class seq
-          INNER JOIN pg_depend dep ON seq.oid = dep.objid
-          INNER JOIN pg_attribute attr ON attr.attrelid = dep.refobjid AND attr.attnum = dep.refobjsubid
-          INNER JOIN pg_constraint cons ON attr.attrelid = cons.conrelid AND attr.attnum = cons.conkey[1]
-          INNER JOIN pg_namespace ns ON seq.relnamespace = ns.oid
-          WHERE seq.relkind  = 'S'
-            AND cons.contype = 'p'
-            AND dep.refobjid = '#{quote_table_name(table)}'::regclass
+        result = query(<<-end_sql, 'PK and serial sequence')[0]
+          SELECT attr.attname, seq.relname
+          FROM pg_class      seq,
+               pg_attribute  attr,
+               pg_depend     dep,
+               pg_namespace  name,
+               pg_constraint cons
+          WHERE seq.oid           = dep.objid
+            AND seq.relkind       = 'S'
+            AND attr.attrelid     = dep.refobjid
+            AND attr.attnum       = dep.refobjsubid
+            AND attr.attrelid     = cons.conrelid
+            AND attr.attnum       = cons.conkey[1]
+            AND cons.contype      = 'p'
+            AND dep.refobjid      = '#{quote_table_name(table)}'::regclass
         end_sql
 
-        # [primary_key, sequence]
-        if result.second ==  'public' then
-          sequence = result.last
-        else
-          sequence = result.second+'.'+result.last
+        if result.nil? or result.empty?
+          # If that fails, try parsing the primary key's default value.
+          # Support the 7.x and 8.0 nextval('foo'::text) as well as
+          # the 8.1+ nextval('foo'::regclass).
+          result = query(<<-end_sql, 'PK and custom sequence')[0]
+            SELECT attr.attname,
+              CASE
+                WHEN split_part(def.adsrc, '''', 2) ~ '.' THEN
+                  substr(split_part(def.adsrc, '''', 2),
+                         strpos(split_part(def.adsrc, '''', 2), '.')+1)
+                ELSE split_part(def.adsrc, '''', 2)
+              END
+            FROM pg_class       t
+            JOIN pg_attribute   attr ON (t.oid = attrelid)
+            JOIN pg_attrdef     def  ON (adrelid = attrelid AND adnum = attnum)
+            JOIN pg_constraint  cons ON (conrelid = adrelid AND adnum = conkey[1])
+            WHERE t.oid = '#{quote_table_name(table)}'::regclass
+              AND cons.contype = 'p'
+              AND def.adsrc ~* 'nextval'
+          end_sql
         end
 
-        [result.first, sequence]
+        [result.first, result.last]
       rescue
         nil
       end
@@ -971,12 +1005,19 @@ module ActiveRecord
       end
 
       # Renames a table.
+      # Also renames a table's primary key sequence if the sequence name matches the
+      # Active Record default.
       #
       # Example:
       #   rename_table('octopuses', 'octopi')
       def rename_table(name, new_name)
         clear_cache!
         execute "ALTER TABLE #{quote_table_name(name)} RENAME TO #{quote_table_name(new_name)}"
+        pk, seq = pk_and_sequence_for(new_name)
+        if seq == "#{name}_#{pk}_seq"
+          new_seq = "#{new_name}_#{pk}_seq"
+          execute "ALTER TABLE #{quote_table_name(seq)} RENAME TO #{quote_table_name(new_seq)}"
+        end
       end
 
       # Adds a new column to the named table.
@@ -1034,14 +1075,25 @@ module ActiveRecord
 
       # Maps logical Rails types to PostgreSQL-specific data types.
       def type_to_sql(type, limit = nil, precision = nil, scale = nil)
-        return super unless type.to_s == 'integer'
-        return 'integer' unless limit
-
-        case limit
-          when 1, 2; 'smallint'
-          when 3, 4; 'integer'
-          when 5..8; 'bigint'
-          else raise(ActiveRecordError, "No integer type has byte size #{limit}. Use a numeric with precision 0 instead.")
+        case type.to_s
+        when 'binary'
+          # PostgreSQL doesn't support limits on binary (bytea) columns.
+          # The hard limit is 1Gb, because of a 32-bit size field, and TOAST.
+          case limit
+          when nil, 0..0x3fffffff; super(type)
+          else raise(ActiveRecordError, "No binary type has byte size #{limit}.")
+          end
+        when 'integer'
+          return 'integer' unless limit
+  
+          case limit
+            when 1, 2; 'smallint'
+            when 3, 4; 'integer'
+            when 5..8; 'bigint'
+            else raise(ActiveRecordError, "No integer type has byte size #{limit}. Use a numeric with precision 0 instead.")
+          end
+        else
+          super
         end
       end
 
