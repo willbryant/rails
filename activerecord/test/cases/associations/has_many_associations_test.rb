@@ -42,9 +42,12 @@ class HasManyAssociationsTestForCountWithCountSql < ActiveRecord::TestCase
   end
 end
 
-class HasManyAssociationsTestForCountDistinctWithFinderSql < ActiveRecord::TestCase
+class HasManyAssociationsTestForCountWithVariousFinderSqls < ActiveRecord::TestCase
   class Invoice < ActiveRecord::Base
     has_many :custom_line_items, :class_name => 'LineItem', :finder_sql => "SELECT DISTINCT line_items.amount from line_items"
+    has_many :custom_full_line_items, :class_name => 'LineItem', :finder_sql => "SELECT line_items.invoice_id, line_items.amount from line_items"
+    has_many :custom_star_line_items, :class_name => 'LineItem', :finder_sql => "SELECT * from line_items"
+    has_many :custom_qualified_star_line_items, :class_name => 'LineItem', :finder_sql => "SELECT line_items.* from line_items"
   end
 
   def test_should_count_distinct_results
@@ -54,6 +57,33 @@ class HasManyAssociationsTestForCountDistinctWithFinderSql < ActiveRecord::TestC
     invoice.save!
 
     assert_equal 1, invoice.custom_line_items.count
+  end
+
+  def test_should_count_results_with_multiple_fields
+    invoice = Invoice.new
+    invoice.custom_full_line_items << LineItem.new(:amount => 0)
+    invoice.custom_full_line_items << LineItem.new(:amount => 0)
+    invoice.save!
+
+    assert_equal 2, invoice.custom_full_line_items.count
+  end
+
+  def test_should_count_results_with_star
+    invoice = Invoice.new
+    invoice.custom_star_line_items << LineItem.new(:amount => 0)
+    invoice.custom_star_line_items << LineItem.new(:amount => 0)
+    invoice.save!
+
+    assert_equal 2, invoice.custom_star_line_items.count
+  end
+
+  def test_should_count_results_with_qualified_star
+    invoice = Invoice.new
+    invoice.custom_qualified_star_line_items << LineItem.new(:amount => 0)
+    invoice.custom_qualified_star_line_items << LineItem.new(:amount => 0)
+    invoice.save!
+
+    assert_equal 2, invoice.custom_qualified_star_line_items.count
   end
 end
 
@@ -269,6 +299,12 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
     firm = companies(:first_firm)
     assert_equal firm.limited_clients.length, firm.limited_clients.size
     assert_equal firm.limited_clients.length, firm.limited_clients.count
+  end
+
+  def test_counting_should_not_fire_sql_if_parent_is_unsaved
+    assert_no_queries do
+      assert_equal 0, Person.new.readers.count
+    end
   end
 
   def test_finding
@@ -1202,6 +1238,13 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
     assert companies(:first_firm).clients.include?(Client.find(2))
   end
 
+  def test_included_in_collection_for_new_records
+    client = Client.create(:name => 'Persisted')
+    assert_nil client.client_of
+    assert !Firm.new.clients_of_firm.include?(client),
+           'includes a client that does not belong to any firm'
+  end
+
   def test_adding_array_and_collection
     assert_nothing_raised { Firm.find(:first).clients + Firm.find(:all).last.clients }
   end
@@ -1672,6 +1715,14 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
     post = SubStiPost.create! :title => "fooo", :body => "baa"
     tagging = Tagging.create! :taggable => post
     assert_equal [tagging], post.taggings
+  end
+
+  def test_build_with_polymotphic_has_many_does_not_allow_to_override_type_and_id
+    welcome = posts(:welcome)
+    tagging = welcome.taggings.build(:taggable_id => 99, :taggable_type => 'ShouldNotChange')
+
+    assert_equal welcome.id, tagging.taggable_id
+    assert_equal 'Post', tagging.taggable_type
   end
 
   def test_dont_call_save_callbacks_twice_on_has_many

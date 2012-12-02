@@ -5,11 +5,15 @@ require 'active_support/core_ext/hash/conversions'
 require 'active_support/core_ext/hash/slice'
 
 module ActiveModel
-  # == Active Model XML Serializer
   module Serializers
+    # == Active Model XML Serializer
     module Xml
       extend ActiveSupport::Concern
       include ActiveModel::Serialization
+
+      included do
+        extend ActiveModel::Naming
+      end
 
       class Serializer #:nodoc:
         class Attribute #:nodoc:
@@ -140,7 +144,12 @@ module ActiveModel
             end
           else
             merged_options[:root] = association.to_s
-            records.to_xml(merged_options)
+
+            unless records.class.to_s.underscore == association.to_s
+              merged_options[:type] = records.class.name
+            end
+
+            records.to_xml merged_options
           end
         end
 

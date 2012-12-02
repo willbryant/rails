@@ -45,7 +45,7 @@ module ActionView
       #   # => <form action="/posts" method="post">
       #
       #   form_tag('/posts/1', :method => :put)
-      #   # => <form action="/posts/1" method="put">
+      #   # => <form action="/posts/1" method="post"> ... <input name="_method" type="hidden" value="put" /> ...
       #
       #   form_tag('/upload', :multipart => true)
       #   # => <form action="/upload" method="post" enctype="multipart/form-data">
@@ -53,7 +53,7 @@ module ActionView
       #   <%= form_tag('/posts') do -%>
       #     <div><%= submit_tag 'Save' %></div>
       #   <% end -%>
-      #   # => <form action="/posts" method="post"><div><input type="submit" name="submit" value="Save" /></div></form>
+      #   # => <form action="/posts" method="post"><div><input type="submit" name="commit" value="Save" /></div></form>
       #
       #   <%= form_tag('/posts', :remote => true) %>
       #   # => <form action="/posts" method="post" data-remote="true">
@@ -119,6 +119,7 @@ module ActionView
       #   # => <select disabled="disabled" id="destination" name="destination"><option>NYC</option>
       #   #    <option>Paris</option><option>Rome</option></select>
       def select_tag(name, option_tags = nil, options = {})
+        option_tags ||= ""
         html_name = (options[:multiple] == true && !name.to_s.ends_with?("[]")) ? "#{name}[]" : name
 
         if options.delete(:include_blank)

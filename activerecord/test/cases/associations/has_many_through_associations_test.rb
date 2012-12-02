@@ -789,6 +789,12 @@ class HasManyThroughAssociationsTest < ActiveRecord::TestCase
     assert_equal 1, authors(:mary).categories.general.count
   end
 
+  def test_counting_should_not_fire_sql_if_parent_is_unsaved
+    assert_no_queries do
+      assert_equal 0, Person.new.posts.count
+    end
+  end
+
   def test_has_many_through_belongs_to_should_update_when_the_through_foreign_key_changes
     post = posts(:eager_other)
 
@@ -850,6 +856,11 @@ class HasManyThroughAssociationsTest < ActiveRecord::TestCase
       c = Category.create(:name => 'Fishing', :authors => [Author.first])
       c.save
     end
+  end
+
+  def test_assign_array_to_new_record_builds_join_records
+    c = Category.new(:name => 'Fishing', :authors => [Author.first])
+    assert_equal 1, c.categorizations.size
   end
 
   def test_create_bang_should_raise_exception_when_join_record_has_errors

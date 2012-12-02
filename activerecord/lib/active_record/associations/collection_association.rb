@@ -190,6 +190,8 @@ module ActiveRecord
       # association, it will be used for the query. Otherwise, construct options and pass them with
       # scope to the target class's +count+.
       def count(column_name = nil, count_options = {})
+        return 0 if owner.new_record?
+
         column_name, count_options = nil, column_name if column_name.is_a?(Hash)
 
         if options[:counter_sql] || options[:finder_sql]
@@ -362,7 +364,7 @@ module ActiveRecord
             # replace the SELECT clause with COUNT(SELECTS), preserving any hints within /* ... */
             interpolate(options[:finder_sql]).sub(/SELECT\b(\/\*.*?\*\/ )?(.*)\bFROM\b/im) do
               count_with = $2.to_s
-              count_with = '*' if count_with.blank? || count_with =~ /,/
+              count_with = '*' if count_with.blank? || count_with =~ /,/ || count_with =~ /\.\*/
               "SELECT #{$1}COUNT(#{count_with}) FROM"
             end
           end
@@ -407,7 +409,7 @@ module ActiveRecord
             if mem_index
               mem_record = memory.delete_at(mem_index)
 
-              (record.attribute_names - mem_record.changes.keys).each do |name|
+              ((record.attribute_names & mem_record.attribute_names) - mem_record.changes.keys).each do |name|
                 mem_record[name] = record[name]
               end
 
@@ -569,7 +571,9 @@ module ActiveRecord
           args.shift if args.first.is_a?(Hash) && args.first.empty?
 
           collection = fetch_first_or_last_using_find?(args) ? scoped : load_target
-          collection.send(type, *args)
+          collection.send(type, *args).tap do |record|
+            set_inverse_instance record if record.is_a? ActiveRecord::Base
+          end
         end
     end
   end

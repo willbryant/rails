@@ -773,6 +773,12 @@ XML
     assert_equal '159528', @response.body
   end
 
+  def test_action_dispatch_uploaded_file_upload
+    tf = Class.new { def size; 159528 end }
+    post :test_file_upload, :file => ActionDispatch::Http::UploadedFile.new(:tempfile => tf.new)
+    assert_equal '159528', @response.body
+  end
+
   def test_test_uploaded_file_exception_when_file_doesnt_exist
     assert_raise(RuntimeError) { Rack::Test::UploadedFile.new('non_existent_file') }
   end

@@ -451,7 +451,7 @@ module ActionDispatch
                 # we must actually delete prefix segment keys to avoid passing them to next url_for
                 _route.segment_keys.each { |k| options.delete(k) }
                 prefix = _routes.url_helpers.send("#{name}_path", prefix_options)
-                prefix = '' if prefix == '/'
+                prefix = prefix.gsub(%r{/\z}, '')
                 prefix
               end
             end
@@ -982,7 +982,7 @@ module ActionDispatch
         # === Options
         # Takes same options as +resources+.
         def resource(*resources, &block)
-          options = resources.extract_options!
+          options = resources.extract_options!.dup
 
           if apply_common_behavior_for(:resource, resources, options, &block)
             return self
@@ -1120,7 +1120,7 @@ module ActionDispatch
         #   # resource actions are at /admin/posts.
         #   resources :posts, :path => "admin/posts"
         def resources(*resources, &block)
-          options = resources.extract_options!
+          options = resources.extract_options!.dup
 
           if apply_common_behavior_for(:resources, resources, options, &block)
             return self

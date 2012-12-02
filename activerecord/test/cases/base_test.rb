@@ -205,6 +205,7 @@ class BasicsTest < ActiveRecord::TestCase
       assert_equal 11, Topic.find(1).written_on.sec
       assert_equal 223300, Topic.find(1).written_on.usec
       assert_equal 9900, Topic.find(2).written_on.usec
+      assert_equal 129346, Topic.find(3).written_on.usec
     end
   end
 
@@ -918,6 +919,18 @@ class BasicsTest < ActiveRecord::TestCase
     assert_equal Time.local(2000, 1, 1, 5, 42, 0), topic.bonus_time
   end
 
+  def test_attributes_on_dummy_time_with_invalid_time
+    # Oracle, and Sybase do not have a TIME datatype.
+    return true if current_adapter?(:OracleAdapter, :SybaseAdapter)
+
+    attributes = {
+      "bonus_time" => "not a time"
+    }
+    topic = Topic.find(1)
+    topic.attributes = attributes
+    assert_nil topic.bonus_time
+  end
+
   def test_boolean
     b_nil = Boolean.create({ "value" => nil })
     nil_id = b_nil.id
@@ -1278,6 +1291,16 @@ class BasicsTest < ActiveRecord::TestCase
     t.save!
     t.reload
     assert_equal({ :foo => :bar }, t.content_before_type_cast)
+  end
+
+  def test_serialized_attributes_before_type_cast_returns_unserialized_value
+    Topic.serialize :content, Hash
+
+    t = Topic.new(:content => { :foo => :bar })
+    assert_equal({ :foo => :bar }, t.attributes_before_type_cast["content"])
+    t.save!
+    t.reload
+    assert_equal({ :foo => :bar }, t.attributes_before_type_cast["content"])
   end
 
   def test_serialized_attribute_calling_dup_method
@@ -2140,7 +2163,7 @@ class BasicsTest < ActiveRecord::TestCase
 
   def test_cache_key_format_for_existing_record_with_nil_updated_at
     dev = Developer.first
-    dev.update_column(:updated_at, nil)
+    dev.update_attribute(:updated_at, nil)
     assert_match(/\/#{dev.id}$/, dev.cache_key)
   end
 

@@ -1093,6 +1093,10 @@ class RelationTest < ActiveRecord::TestCase
     assert_equal 'honda', FastCar.unscoped { FastCar.order_using_old_style.limit(1).first.name}
   end
 
+  def test_unscoped_relation_clones
+    assert_not_equal CoolCar.unscoped.object_id, CoolCar.unscoped.object_id
+  end
+
   def test_intersection_with_array
     relation = Author.where(:name => "David")
     rails_author = relation.first
@@ -1180,5 +1184,19 @@ class RelationTest < ActiveRecord::TestCase
       assert_equal ['Foo'], query.uniq(true).map(&:name)
     end
     assert_equal ['Foo', 'Foo'], query.uniq(true).uniq(false).map(&:name)
+  end
+
+  test 'group with select and includes' do
+    authors_count = Post.select('author_id, COUNT(author_id) AS num_posts').
+      group('author_id').order('author_id').includes(:author).to_a
+
+    assert_no_queries do
+      result = authors_count.map do |post|
+        [post.num_posts.to_i, post.author.try(:name)]
+      end
+
+      expected = [[1, nil], [5, "David"], [3, "Mary"], [2, "Bob"]]
+      assert_equal expected, result
+    end
   end
 end

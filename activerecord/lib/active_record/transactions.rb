@@ -208,6 +208,21 @@ module ActiveRecord
         connection.transaction(options, &block)
       end
 
+      # This callback is called after a record has been created, updated, or destroyed.
+      #
+      # You can specify that the callback should only be fired by a certain action with
+      # the +:on+ option:
+      #
+      #   after_commit :do_foo, :on => :create
+      #   after_commit :do_bar, :on => :update
+      #   after_commit :do_baz, :on => :destroy
+      #
+      # Also, to have the callback fired on create and update, but not on destroy:
+      #
+      #   after_commit :do_zoo, :if => :persisted?
+      #
+      # Note that transactional fixtures do not play well with this feature. Please
+      # use the +test_after_commit+ gem to have these hooks fired in tests.
       def after_commit(*args, &block)
         options = args.last
         if options.is_a?(Hash) && options[:on]
@@ -217,6 +232,9 @@ module ActiveRecord
         set_callback(:commit, :after, *args, &block)
       end
 
+      # This callback is called after a create, update, or destroy are rolled back.
+      #
+      # Please check the documentation of +after_commit+ for options.
       def after_rollback(*args, &block)
         options = args.last
         if options.is_a?(Hash) && options[:on]
@@ -311,6 +329,7 @@ module ActiveRecord
         @_start_transaction_state[:destroyed] = @destroyed
       end
       @_start_transaction_state[:level] = (@_start_transaction_state[:level] || 0) + 1
+      @_start_transaction_state[:frozen?] = @attributes.frozen?
     end
 
     # Clear the new record state and id of a record.
@@ -325,10 +344,10 @@ module ActiveRecord
     def restore_transaction_record_state(force = false) #:nodoc:
       if defined?(@_start_transaction_state)
         @_start_transaction_state[:level] = (@_start_transaction_state[:level] || 0) - 1
-        if @_start_transaction_state[:level] < 1
+        if @_start_transaction_state[:level] < 1 || force
           restore_state = remove_instance_variable(:@_start_transaction_state)
-          was_frozen = @attributes.frozen?
-          @attributes = @attributes.dup if was_frozen
+          was_frozen = restore_state[:frozen?]
+          @attributes = @attributes.dup if @attributes.frozen?
           @new_record = restore_state[:new_record]
           @destroyed  = restore_state[:destroyed]
           if restore_state.has_key?(:id)

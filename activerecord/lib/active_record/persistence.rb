@@ -162,7 +162,7 @@ module ActiveRecord
       became.instance_variable_set("@new_record", new_record?)
       became.instance_variable_set("@destroyed", destroyed?)
       became.instance_variable_set("@errors", errors)
-      became.type = klass.name unless self.class.descends_from_active_record?
+      became.send("#{klass.inheritance_column}=", klass.name) unless self.class.descends_from_active_record?
       became
     end
 
@@ -173,9 +173,6 @@ module ActiveRecord
     # * Callbacks are invoked.
     # * updated_at/updated_on column is updated if that column is available.
     # * Updates all the attributes that are dirty in this object.
-    #
-    # This method has been deprecated in favor of <tt>update_column</tt> due to
-    # its similarity with <tt>update_attributes</tt>.
     #
     def update_attribute(name, value)
       name = name.to_s
@@ -196,8 +193,12 @@ module ActiveRecord
       name = name.to_s
       raise ActiveRecordError, "#{name} is marked as readonly" if self.class.readonly_attributes.include?(name)
       raise ActiveRecordError, "can not update on a new record object" unless persisted?
+
+      updated_count = self.class.update_all({ name => value }, self.class.primary_key => id)
+
       raw_write_attribute(name, value)
-      self.class.update_all({ name => value }, self.class.primary_key => id) == 1
+
+      updated_count == 1
     end
 
     # Updates the attributes of the model from the passed-in hash and saves the
@@ -242,7 +243,7 @@ module ActiveRecord
     # Saving is not subjected to validation checks. Returns +true+ if the
     # record could be saved.
     def increment!(attribute, by = 1)
-      increment(attribute, by).update_column(attribute, self[attribute])
+      increment(attribute, by).update_attribute(attribute, self[attribute])
     end
 
     # Initializes +attribute+ to zero if +nil+ and subtracts the value passed as +by+ (default is 1).
@@ -259,7 +260,7 @@ module ActiveRecord
     # Saving is not subjected to validation checks. Returns +true+ if the
     # record could be saved.
     def decrement!(attribute, by = 1)
-      decrement(attribute, by).update_column(attribute, self[attribute])
+      decrement(attribute, by).update_attribute(attribute, self[attribute])
     end
 
     # Assigns to +attribute+ the boolean opposite of <tt>attribute?</tt>. So
@@ -276,7 +277,7 @@ module ActiveRecord
     # Saving is not subjected to validation checks. Returns +true+ if the
     # record could be saved.
     def toggle!(attribute)
-      toggle(attribute).update_column(attribute, self[attribute])
+      toggle(attribute).update_attribute(attribute, self[attribute])
     end
 
     # Reloads the attributes of this object from the database.

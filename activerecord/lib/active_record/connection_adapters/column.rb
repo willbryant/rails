@@ -75,7 +75,7 @@ module ActiveRecord
 
         case type
         when :string, :text        then value
-        when :integer              then value.to_i rescue value ? 1 : 0
+        when :integer              then klass.value_to_integer(value)
         when :float                then value.to_f
         when :decimal              then klass.value_to_decimal(value)
         when :datetime, :timestamp then klass.string_to_time(value)
@@ -92,7 +92,7 @@ module ActiveRecord
 
         case type
         when :string, :text        then var_name
-        when :integer              then "(#{var_name}.to_i rescue #{var_name} ? 1 : 0)"
+        when :integer              then "#{klass}.value_to_integer(#{var_name})"
         when :float                then "#{var_name}.to_f"
         when :decimal              then "#{klass}.value_to_decimal(#{var_name})"
         when :datetime, :timestamp then "#{klass}.string_to_time(#{var_name})"
@@ -150,7 +150,13 @@ module ActiveRecord
           return string unless string.is_a?(String)
           return nil if string.empty?
 
-          string_to_time "2000-01-01 #{string}"
+          dummy_time_string = "2000-01-01 #{string}"
+
+          fast_string_to_time(dummy_time_string) || begin
+            time_hash = Date._parse(dummy_time_string)
+            return nil if time_hash[:hour].nil?
+            new_time(*time_hash.values_at(:year, :mon, :mday, :hour, :min, :sec, :sec_fraction))
+          end
         end
 
         # convert something to a boolean
@@ -159,6 +165,17 @@ module ActiveRecord
             nil
           else
             TRUE_VALUES.include?(value)
+          end
+        end
+
+        # Used to convert values to integer.
+        # handle the case when an integer column is used to store boolean values
+        def value_to_integer(value)
+          case value
+          when TrueClass, FalseClass
+            value ? 1 : 0
+          else
+            value.to_i
           end
         end
 
@@ -180,7 +197,7 @@ module ActiveRecord
           # '0.123456' -> 123456
           # '1.123456' -> 123456
           def microseconds(time)
-            ((time[:sec_fraction].to_f % 1) * 1_000_000).to_i
+            time[:sec_fraction] ? (time[:sec_fraction] * 1_000_000).to_i : 0
           end
 
           def new_date(year, mon, mday)
@@ -202,11 +219,20 @@ module ActiveRecord
             end
           end
 
-          # Doesn't handle time zones.
-          def fast_string_to_time(string)
-            if string =~ Format::ISO_DATETIME
-              microsec = ($7.to_f * 1_000_000).to_i
-              new_time $1.to_i, $2.to_i, $3.to_i, $4.to_i, $5.to_i, $6.to_i, microsec
+          if RUBY_VERSION >= '1.9'
+            # Doesn't handle time zones.
+            def fast_string_to_time(string)
+              if string =~ Format::ISO_DATETIME
+                microsec = ($7.to_r * 1_000_000).to_i
+                new_time $1.to_i, $2.to_i, $3.to_i, $4.to_i, $5.to_i, $6.to_i, microsec
+              end
+            end
+          else
+            def fast_string_to_time(string)
+              if string =~ Format::ISO_DATETIME
+                microsec = ($7.to_f * 1_000_000).round.to_i
+                new_time $1.to_i, $2.to_i, $3.to_i, $4.to_i, $5.to_i, $6.to_i, microsec
+              end
             end
           end
 

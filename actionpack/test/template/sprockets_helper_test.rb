@@ -1,7 +1,7 @@
 require 'abstract_unit'
 require 'sprockets'
 require 'sprockets/helpers/rails_helper'
-require 'mocha'
+require 'mocha/setup'
 
 class SprocketsHelperTest < ActionView::TestCase
   include Sprockets::Helpers::RailsHelper
@@ -356,6 +356,14 @@ class SprocketsHelperTest < ActionView::TestCase
   test "precedence of `config.digest = false` over manifest.yml asset digests" do
     Rails.application.config.assets.digests = {'logo.png' => 'logo-d1g3st.png'}
     @config.assets.digest = false
+
+    assert_equal '/assets/logo.png',
+      asset_path("logo.png")
+  end
+
+  test "`config.digest = false` works with `config.compile = false`" do
+    @config.assets.digest = false
+    @config.assets.compile = false
 
     assert_equal '/assets/logo.png',
       asset_path("logo.png")

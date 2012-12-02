@@ -232,7 +232,7 @@ module ActiveRecord
   #       add_column :people, :salary, :integer
   #       Person.reset_column_information
   #       Person.all.each do |p|
-  #         p.update_column :salary, SalaryCalculator.compute(p)
+  #         p.update_attribute :salary, SalaryCalculator.compute(p)
   #       end
   #     end
   #   end
@@ -252,7 +252,7 @@ module ActiveRecord
   #     ...
   #     say_with_time "Updating salaries..." do
   #       Person.all.each do |p|
-  #         p.update_column :salary, SalaryCalculator.compute(p)
+  #         p.update_attribute :salary, SalaryCalculator.compute(p)
   #       end
   #     end
   #     ...
@@ -458,7 +458,7 @@ module ActiveRecord
       say_with_time "#{method}(#{arg_list})" do
         unless reverting?
           unless arguments.empty? || method == :execute
-            arguments[0] = Migrator.proper_table_name(arguments.first)
+            arguments[0] = Migrator.proper_table_name(arguments.first) unless method == :assume_migrated_upto_version
             arguments[1] = Migrator.proper_table_name(arguments.second) if method == :rename_table
           end
         end

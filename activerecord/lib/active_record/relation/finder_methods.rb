@@ -199,7 +199,7 @@ module ActiveRecord
         relation = relation.where(table[primary_key].eq(id)) if id
       end
 
-      connection.select_value(relation, "#{name} Exists") ? true : false
+      connection.select_value(relation, "#{name} Exists", relation.bind_values) ? true : false
     rescue ThrowResult
       false
     end
@@ -263,7 +263,7 @@ module ActiveRecord
       conditions = Hash[attributes.map {|a| [a, args[attributes.index(a)]]}]
       result = where(conditions).send(match.finder)
 
-      if match.bang? && result.blank?
+      if match.bang? && result.nil?
         raise RecordNotFound, "Couldn't find #{@klass.name} with #{conditions.to_a.collect {|p| p.join(' = ')}.join(', ')}"
       else
         yield(result) if block_given?
@@ -332,7 +332,7 @@ module ActiveRecord
 
       substitute = connection.substitute_at(column, @bind_values.length)
       relation = where(table[primary_key].eq(substitute))
-      relation.bind_values = [[column, id]]
+      relation.bind_values += [[column, id]]
       record = relation.first
 
       unless record

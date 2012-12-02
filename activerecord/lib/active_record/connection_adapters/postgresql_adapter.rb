@@ -145,11 +145,8 @@ module ActiveRecord
             when /\A\(?(-?\d+(\.\d*)?\)?)\z/
               $1
             # Character types
-            when /\A'(.*)'::(?:character varying|bpchar|text)\z/m
+            when /\A\(?'(.*)'::.*\b(?:character varying|bpchar|text)\z/m
               $1
-            # Character types (8.1 formatting)
-            when /\AE'(.*)'::(?:character varying|bpchar|text)\z/m
-              $1.gsub(/\\(\d\d\d)/) { $1.oct.chr }
             # Binary data types
             when /\A'(.*)'::bytea\z/m
               $1
@@ -354,6 +351,7 @@ module ActiveRecord
       def reconnect!
         clear_cache!
         @connection.reset
+        @open_transactions = 0
         configure_connection
       end
 
@@ -795,28 +793,28 @@ module ActiveRecord
         binds = [[nil, table]]
         binds << [nil, schema] if schema
 
-        exec_query(<<-SQL, 'SCHEMA', binds).rows.first[0].to_i > 0
+        exec_query(<<-SQL, 'SCHEMA').rows.first[0].to_i > 0
             SELECT COUNT(*)
             FROM pg_class c
             LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
             WHERE c.relkind in ('v','r')
-            AND c.relname = $1
-            AND n.nspname = #{schema ? '$2' : 'ANY (current_schemas(false))'}
+            AND c.relname = '#{table.gsub(/(^"|"$)/,'')}'
+            AND n.nspname = #{schema ? "'#{schema}'" : 'ANY (current_schemas(false))'}
         SQL
       end
 
       # Returns true if schema exists.
       def schema_exists?(name)
-        exec_query(<<-SQL, 'SCHEMA', [[nil, name]]).rows.first[0].to_i > 0
+        exec_query(<<-SQL, 'SCHEMA').rows.first[0].to_i > 0
           SELECT COUNT(*)
           FROM pg_namespace
-          WHERE nspname = $1
+          WHERE nspname = '#{name}'
         SQL
       end
 
       # Returns an array of indexes for the given table.
       def indexes(table_name, name = nil)
-         result = query(<<-SQL, name)
+         result = query(<<-SQL, 'SCHEMA')
            SELECT distinct i.relname, d.indisunique, d.indkey, pg_get_indexdef(d.indexrelid), t.oid
            FROM pg_class t
            INNER JOIN pg_index d ON t.oid = d.indrelid
@@ -836,7 +834,7 @@ module ActiveRecord
           inddef = row[3]
           oid = row[4]
 
-          columns = Hash[query(<<-SQL, "Columns for index #{row[0]} on #{table_name}")]
+          columns = Hash[query(<<-SQL, "SCHEMA")]
           SELECT a.attnum, a.attname
           FROM pg_attribute a
           WHERE a.attrelid = #{oid}
@@ -848,7 +846,7 @@ module ActiveRecord
           # add info on sort order for columns (only desc order is explicitly specified, asc is the default)
           desc_order_columns = inddef.scan(/(\w+) DESC/).flatten
           orders = desc_order_columns.any? ? Hash[desc_order_columns.map {|order_column| [order_column, :desc]}] : {}
-      
+
           column_names.empty? ? nil : IndexDefinition.new(table_name, index_name, unique, column_names, [], orders)
         end.compact
       end
@@ -863,7 +861,7 @@ module ActiveRecord
 
       # Returns the current database name.
       def current_database
-        query('select current_database()')[0][0]
+        query('select current_database()', 'SCHEMA')[0][0]
       end
 
       # Returns the current schema name.
@@ -873,7 +871,7 @@ module ActiveRecord
 
       # Returns the current database encoding format.
       def encoding
-        query(<<-end_sql)[0][0]
+        query(<<-end_sql, 'SCHEMA')[0][0]
           SELECT pg_encoding_to_char(pg_database.encoding) FROM pg_database
           WHERE pg_database.datname LIKE '#{current_database}'
         end_sql
@@ -914,8 +912,8 @@ module ActiveRecord
       end
 
       def serial_sequence(table, column)
-        result = exec_query(<<-eosql, 'SCHEMA', [[nil, table], [nil, column]])
-          SELECT pg_get_serial_sequence($1, $2)
+        result = exec_query(<<-eosql, 'SCHEMA')
+          SELECT pg_get_serial_sequence('#{table}', '#{column}')
         eosql
         result.rows.first.first
       end
@@ -936,7 +934,7 @@ module ActiveRecord
         if pk && sequence
           quoted_sequence = quote_table_name(sequence)
 
-          select_value <<-end_sql, 'Reset sequence'
+          select_value <<-end_sql, 'SCHEMA'
             SELECT setval('#{quoted_sequence}', (SELECT COALESCE(MAX(#{quote_column_name pk})+(SELECT increment_by FROM #{quoted_sequence}), (SELECT min_value FROM #{quoted_sequence})) FROM #{quote_table_name(table)}), false)
           end_sql
         end
@@ -946,7 +944,7 @@ module ActiveRecord
       def pk_and_sequence_for(table) #:nodoc:
         # First try looking for a sequence with a dependency on the
         # given table's primary key.
-        result = query(<<-end_sql, 'PK and serial sequence')[0]
+        result = query(<<-end_sql, 'SCHEMA')[0]
           SELECT attr.attname, seq.relname
           FROM pg_class      seq,
                pg_attribute  attr,
@@ -964,16 +962,13 @@ module ActiveRecord
         end_sql
 
         if result.nil? or result.empty?
-          # If that fails, try parsing the primary key's default value.
-          # Support the 7.x and 8.0 nextval('foo'::text) as well as
-          # the 8.1+ nextval('foo'::regclass).
-          result = query(<<-end_sql, 'PK and custom sequence')[0]
+          result = query(<<-end_sql, 'SCHEMA')[0]
             SELECT attr.attname,
               CASE
-                WHEN split_part(def.adsrc, '''', 2) ~ '.' THEN
-                  substr(split_part(def.adsrc, '''', 2),
-                         strpos(split_part(def.adsrc, '''', 2), '.')+1)
-                ELSE split_part(def.adsrc, '''', 2)
+                WHEN split_part(pg_get_expr(def.adbin, def.adrelid), '''', 2) ~ '.' THEN
+                  substr(split_part(pg_get_expr(def.adbin, def.adrelid), '''', 2),
+                         strpos(split_part(pg_get_expr(def.adbin, def.adrelid), '''', 2), '.')+1)
+                ELSE split_part(pg_get_expr(def.adbin, def.adrelid), '''', 2)
               END
             FROM pg_class       t
             JOIN pg_attribute   attr ON (t.oid = attrelid)
@@ -981,7 +976,7 @@ module ActiveRecord
             JOIN pg_constraint  cons ON (conrelid = adrelid AND adnum = conkey[1])
             WHERE t.oid = '#{quote_table_name(table)}'::regclass
               AND cons.contype = 'p'
-              AND def.adsrc ~* 'nextval'
+              AND pg_get_expr(def.adbin, def.adrelid) ~* 'nextval'
           end_sql
         end
 
@@ -992,13 +987,13 @@ module ActiveRecord
 
       # Returns just a table's primary key
       def primary_key(table)
-        row = exec_query(<<-end_sql, 'SCHEMA', [[nil, table]]).rows.first
+        row = exec_query(<<-end_sql, 'SCHEMA').rows.first
           SELECT DISTINCT(attr.attname)
           FROM pg_attribute attr
           INNER JOIN pg_depend dep ON attr.attrelid = dep.refobjid AND attr.attnum = dep.refobjsubid
           INNER JOIN pg_constraint cons ON attr.attrelid = cons.conrelid AND attr.attnum = cons.conkey[1]
           WHERE cons.contype = 'p'
-            AND dep.refobjid = $1::regclass
+            AND dep.refobjid = '#{quote_table_name(table)}'::regclass
         end_sql
 
         row && row.first
@@ -1083,9 +1078,16 @@ module ActiveRecord
           when nil, 0..0x3fffffff; super(type)
           else raise(ActiveRecordError, "No binary type has byte size #{limit}.")
           end
+        when 'text'
+          # PostgreSQL doesn't support limits on text columns.
+          # The hard limit is 1Gb, according to section 8.3 in the manual.
+          case limit
+          when nil, 0..0x3fffffff; super(type)
+          else raise(ActiveRecordError, "The limit on text can be at most 1GB - 1byte.")
+          end
         when 'integer'
           return 'integer' unless limit
-  
+
           case limit
             when 1, 2; 'smallint'
             when 3, 4; 'integer'
@@ -1108,7 +1110,7 @@ module ActiveRecord
 
         # Construct a clean list of column names from the ORDER BY clause, removing
         # any ASC/DESC modifiers
-        order_columns = orders.collect { |s| s.gsub(/\s+(ASC|DESC)\s*/i, '') }
+        order_columns = orders.collect { |s| s.gsub(/\s+(ASC|DESC)\s*(NULLS\s+(FIRST|LAST)\s*)?/i, '') }
         order_columns.delete_if { |c| c.blank? }
         order_columns = order_columns.zip((0...order_columns.size).to_a).map { |s,i| "#{s} AS alias_#{i}" }
 
@@ -1140,11 +1142,15 @@ module ActiveRecord
           @connection.server_version
         end
 
+        # See http://www.postgresql.org/docs/9.1/static/errcodes-appendix.html
+        FOREIGN_KEY_VIOLATION = "23503"
+        UNIQUE_VIOLATION      = "23505"
+
         def translate_exception(exception, message)
-          case exception.message
-          when /duplicate key value violates unique constraint/
+          case exception.result.error_field(PGresult::PG_DIAG_SQLSTATE)
+          when UNIQUE_VIOLATION
             RecordNotUnique.new(message, exception)
-          when /violates foreign key constraint/
+          when FOREIGN_KEY_VIOLATION
             InvalidForeignKey.new(message, exception)
           else
             super
@@ -1243,7 +1249,7 @@ module ActiveRecord
 
         # Returns the current ID of a table's sequence.
         def last_insert_id(sequence_name) #:nodoc:
-          r = exec_query("SELECT currval($1)", 'SQL', [[nil, sequence_name]])
+          r = exec_query("SELECT currval('#{sequence_name}')", 'SQL')
           Integer(r.rows.first.first)
         end
 
@@ -1281,7 +1287,8 @@ module ActiveRecord
         #  - ::regclass is a function that gives the id for a table name
         def column_definitions(table_name) #:nodoc:
           exec_query(<<-end_sql, 'SCHEMA').rows
-            SELECT a.attname, format_type(a.atttypid, a.atttypmod), d.adsrc, a.attnotnull
+            SELECT a.attname, format_type(a.atttypid, a.atttypmod),
+                     pg_get_expr(d.adbin, d.adrelid), a.attnotnull, a.atttypid, a.atttypmod
               FROM pg_attribute a LEFT JOIN pg_attrdef d
                 ON a.attrelid = d.adrelid AND a.attnum = d.adnum
              WHERE a.attrelid = '#{quote_table_name(table_name)}'::regclass

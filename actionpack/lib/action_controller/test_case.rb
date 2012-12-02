@@ -103,9 +103,13 @@ module ActionController
 
         if expected_partial = options[:partial]
           if expected_locals = options[:locals]
-            actual_locals = @locals[expected_partial.to_s.sub(/^_/,'')]
-            expected_locals.each_pair do |k,v|
-              assert_equal(v, actual_locals[k])
+            if defined?(@locals)
+              actual_locals = @locals[expected_partial.to_s.sub(/^_/,'')]
+              expected_locals.each_pair do |k,v|
+                assert_equal(v, actual_locals[k])
+              end
+            else
+              warn "the :locals option to #assert_template is only supported in a ActionView::TestCase"
             end
           elsif expected_count = options[:count]
             actual_count = @partials[expected_partial]
@@ -422,7 +426,7 @@ module ActionController
           Hash[hash_or_array_or_value.map{|key, value| [key, paramify_values(value)] }]
         when Array
           hash_or_array_or_value.map {|i| paramify_values(i)}
-        when Rack::Test::UploadedFile
+        when Rack::Test::UploadedFile, ActionDispatch::Http::UploadedFile
           hash_or_array_or_value
         else
           hash_or_array_or_value.to_param

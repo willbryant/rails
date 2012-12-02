@@ -173,6 +173,12 @@ class HasOneAssociationsTest < ActiveRecord::TestCase
     assert_equal account, firm.account
   end
 
+  def test_build_association_dont_create_transaction
+    assert_no_queries {
+      Firm.new.build_account
+    }
+  end
+
   def test_build_and_create_should_not_happen_within_scope
     pirate = pirates(:blackbeard)
     scoped_count = pirate.association(:foo_bulb).scoped.where_values.count
@@ -471,5 +477,18 @@ class HasOneAssociationsTest < ActiveRecord::TestCase
     bulb = car.create_bulb
 
     assert_equal car.id, bulb.attributes_after_initialize['car_id']
+  end
+
+  def test_has_one_transaction
+    company = companies(:first_firm)
+    account = Account.find(1)
+
+    company.account # force loading
+    assert_no_queries { company.account = account }
+
+    company.account = nil
+    assert_no_queries { company.account = nil }
+    account = Account.find(2)
+    assert_queries { company.account = account }
   end
 end

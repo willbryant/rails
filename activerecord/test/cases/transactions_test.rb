@@ -14,6 +14,21 @@ class TransactionTest < ActiveRecord::TestCase
     @first, @second = Topic.find(1, 2).sort_by { |t| t.id }
   end
 
+  def test_raise_after_destroy
+    assert !@first.frozen?
+
+    assert_raises(RuntimeError) {
+      Topic.transaction do
+        @first.destroy
+        assert @first.frozen?
+        raise
+      end
+    }
+
+    assert @first.reload
+    assert !@first.frozen?
+  end
+
   def test_successful
     Topic.transaction do
       @first.approved  = true
@@ -201,6 +216,23 @@ class TransactionTest < ActiveRecord::TestCase
       ensure
         remove_exception_raising_after_create_callback_to_topic
       end
+    end
+  end
+
+  def test_callback_rollback_in_create_with_record_invalid_exception
+    begin
+      Topic.class_eval <<-eoruby, __FILE__, __LINE__ + 1
+        remove_method(:after_create_for_transaction)
+        def after_create_for_transaction
+          raise ActiveRecord::RecordInvalid.new(Author.new)
+        end
+      eoruby
+
+      new_topic = Topic.create(:title => "A new topic")
+      assert !new_topic.persisted?, "The topic should not be persisted"
+      assert_nil new_topic.id, "The topic should not have an ID"
+    ensure
+      remove_exception_raising_after_create_callback_to_topic
     end
   end
 
@@ -399,6 +431,29 @@ class TransactionTest < ActiveRecord::TestCase
     assert @first.persisted?, 'persisted'
     assert_not_nil @first.id
     assert !@second.destroyed?, 'not destroyed'
+  end
+
+  def test_optional_no_restore_active_record_state_so_records_not_retained_in_memory
+    topic_1 = Topic.new(:title => 'test_1')
+    Topic.transaction(:remember_record_state => false) do
+      assert topic_1.save
+      @first.destroy
+      assert topic_1.persisted?, 'persisted'
+      assert_not_nil topic_1.id
+      assert @first.destroyed?, 'destroyed'
+      raise ActiveRecord::Rollback
+    end
+
+    assert topic_1.persisted?, 'state was rolled back, so record must have been retained'
+    assert_not_nil topic_1.id
+    assert_raises(ActiveRecord::RecordNotFound) do
+      topic_1.reload
+      flunk 'database was not rolled back'
+    end
+    assert @first.destroyed?, 'state was rolled back, so record must have been retained'
+    assert_nothing_raised do
+      Topic.find(@first.id)
+    end
   end
 
   if current_adapter?(:PostgreSQLAdapter) && defined?(PGconn::PQTRANS_IDLE)

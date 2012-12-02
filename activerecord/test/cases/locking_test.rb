@@ -3,9 +3,11 @@ require "cases/helper"
 require 'models/person'
 require 'models/job'
 require 'models/reader'
+require 'models/ship'
 require 'models/legacy_thing'
 require 'models/reference'
 require 'models/string_key_object'
+require 'models/treasure'
 
 class LockWithoutDefault < ActiveRecord::Base; end
 
@@ -14,12 +16,12 @@ class LockWithCustomColumnWithoutDefault < ActiveRecord::Base
   self.locking_column = :custom_lock_version
 end
 
-class ReadonlyFirstNamePerson < Person
-  attr_readonly :first_name
+class ReadonlyNameShip < Ship
+  attr_readonly :name
 end
 
 class OptimisticLockingTest < ActiveRecord::TestCase
-  fixtures :people, :legacy_things, :references, :string_key_objects
+  fixtures :people, :legacy_things, :references, :string_key_objects, :peoples_treasures
 
   def test_non_integer_lock_existing
     s1 = StringKeyObject.find("record1")
@@ -196,15 +198,15 @@ class OptimisticLockingTest < ActiveRecord::TestCase
   end
 
   def test_readonly_attributes
-    assert_equal Set.new([ 'first_name' ]), ReadonlyFirstNamePerson.readonly_attributes
+    assert_equal Set.new([ 'name' ]), ReadonlyNameShip.readonly_attributes
 
-    p = ReadonlyFirstNamePerson.create(:first_name => "unchangeable name")
-    p.reload
-    assert_equal "unchangeable name", p.first_name
+    s = ReadonlyNameShip.create(:name => "unchangeable name")
+    s.reload
+    assert_equal "unchangeable name", s.name
 
-    p.update_attributes(:first_name => "changed name")
-    p.reload
-    assert_equal "unchangeable name", p.first_name
+    s.update_attributes(:name => "changed name")
+    s.reload
+    assert_equal "unchangeable name", s.name
   end
 
   def test_quote_table_name
@@ -265,6 +267,15 @@ class SetLockingColumnTest < ActiveRecord::TestCase
     assert_deprecated do
       assert_equal "omg", k.original_locking_column
     end
+  end
+
+  def test_removing_has_and_belongs_to_many_associations_upon_destroy
+    p = RichPerson.create! :first_name => 'Jon'
+    p.treasures.create!
+    assert !p.treasures.empty?
+    p.destroy
+    assert p.treasures.empty?
+    assert RichPerson.connection.select_all("SELECT * FROM peoples_treasures WHERE rich_person_id = 1").empty?
   end
 end
 

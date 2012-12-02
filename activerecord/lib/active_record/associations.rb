@@ -99,6 +99,7 @@ module ActiveRecord
 
   # See ActiveRecord::Associations::ClassMethods for documentation.
   module Associations # :nodoc:
+    extend ActiveSupport::Autoload
     extend ActiveSupport::Concern
 
     # These classes will be loaded when associations are created.
@@ -128,11 +129,13 @@ module ActiveRecord
       autoload :HasAndBelongsToMany, 'active_record/associations/builder/has_and_belongs_to_many'
     end
 
-    autoload :Preloader,        'active_record/associations/preloader'
-    autoload :JoinDependency,   'active_record/associations/join_dependency'
-    autoload :AssociationScope, 'active_record/associations/association_scope'
-    autoload :AliasTracker,     'active_record/associations/alias_tracker'
-    autoload :JoinHelper,       'active_record/associations/join_helper'
+    eager_autoload do
+      autoload :Preloader,        'active_record/associations/preloader'
+      autoload :JoinDependency,   'active_record/associations/join_dependency'
+      autoload :AssociationScope, 'active_record/associations/association_scope'
+      autoload :AliasTracker,     'active_record/associations/alias_tracker'
+      autoload :JoinHelper,       'active_record/associations/join_helper'
+    end
 
     # Clears out the association cache.
     def clear_association_cache #:nodoc:

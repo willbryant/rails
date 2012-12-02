@@ -201,6 +201,20 @@ class DirtyTest < ActiveRecord::TestCase
     end
   end
 
+  def test_nullable_datetime_not_marked_as_changed_if_new_value_is_blank
+    in_time_zone 'Edinburgh' do
+      target = Class.new(ActiveRecord::Base)
+      target.table_name = 'topics'
+
+      topic = target.create
+      assert_equal nil, topic.written_on
+
+      topic.written_on = ""
+      assert_equal nil, topic.written_on
+      assert !topic.written_on_changed?
+    end
+  end
+
   def test_integer_zero_to_string_zero_not_marked_as_changed
     pirate = Pirate.new
     pirate.parrot_id = 0
@@ -509,6 +523,45 @@ class DirtyTest < ActiveRecord::TestCase
     assert_not_nil pirate.previous_changes['updated_on'][1]
     assert !pirate.previous_changes.key?('parrot_id')
     assert !pirate.previous_changes.key?('created_on')
+
+    pirate = Pirate.find_by_catchphrase("Ahoy!")
+    pirate.update_attribute(:catchphrase, "Ninjas suck!")
+
+    assert_equal 2, pirate.previous_changes.size
+    assert_equal ["Ahoy!", "Ninjas suck!"], pirate.previous_changes['catchphrase']
+    assert_not_nil pirate.previous_changes['updated_on'][0]
+    assert_not_nil pirate.previous_changes['updated_on'][1]
+    assert !pirate.previous_changes.key?('parrot_id')
+    assert !pirate.previous_changes.key?('created_on')
+  end
+
+  if ActiveRecord::Base.connection.supports_migrations?
+    class Testings < ActiveRecord::Base; end
+    def test_field_named_field
+      ActiveRecord::Base.connection.create_table :testings do |t|
+        t.string :field
+      end
+      assert_nothing_raised do
+        Testings.new.attributes
+      end
+    ensure
+      ActiveRecord::Base.connection.drop_table :testings rescue nil
+    end
+  end
+
+  def test_setting_time_attributes_with_time_zone_field_to_same_time_should_not_be_marked_as_a_change
+    in_time_zone 'Paris' do
+      target = Class.new(ActiveRecord::Base)
+      target.table_name = 'pirates'
+
+      created_on = Time.now
+
+      pirate = target.create(:created_on => created_on)
+      pirate.reload # Here mysql truncate the usec value to 0
+
+      pirate.created_on = created_on
+      assert !pirate.created_on_changed?
+    end
   end
 
   private

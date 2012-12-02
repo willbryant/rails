@@ -4,6 +4,7 @@ module ActiveRecord
       # Converts an arel AST to SQL
       def to_sql(arel, binds = [])
         if arel.respond_to?(:ast)
+          binds = binds.dup
           visitor.accept(arel.ast) do
             quote(*binds.shift.reverse)
           end
@@ -20,14 +21,14 @@ module ActiveRecord
 
       # Returns a record hash with the column names as keys and column values
       # as values.
-      def select_one(arel, name = nil)
-        result = select_all(arel, name)
+      def select_one(arel, name = nil, binds = [])
+        result = select_all(arel, name, binds)
         result.first if result
       end
 
       # Returns a single value from a record
-      def select_value(arel, name = nil)
-        if result = select_one(arel, name)
+      def select_value(arel, name = nil, binds = [])
+        if result = select_one(arel, name, binds)
           result.values.first
         end
       end
@@ -164,13 +165,18 @@ module ActiveRecord
       #     end  # RELEASE SAVEPOINT active_record_1  <--- BOOM! database error!
       #   end
       def transaction(options = {})
-        options.assert_valid_keys :requires_new, :joinable
+        options.assert_valid_keys :requires_new, :joinable, :remember_record_state
 
         last_transaction_joinable = defined?(@transaction_joinable) ? @transaction_joinable : nil
         if options.has_key?(:joinable)
           @transaction_joinable = options[:joinable]
         else
           @transaction_joinable = true
+        end
+        if options.has_key?(:remember_record_state)
+          remember_record_state = options[:remember_record_state]
+        else
+          remember_record_state = true
         end
         requires_new = options[:requires_new] || !last_transaction_joinable
 
@@ -187,7 +193,7 @@ module ActiveRecord
               end
               increment_open_transactions
               transaction_open = true
-              @_current_transaction_records.push([])
+              @_current_transaction_records.push(remember_record_state ? [] : nil)
             end
             yield
           end
@@ -219,8 +225,7 @@ module ActiveRecord
             else
               release_savepoint
               save_point_records = @_current_transaction_records.pop
-              unless save_point_records.blank?
-                @_current_transaction_records.push([]) if @_current_transaction_records.empty?
+              unless save_point_records.blank? || @_current_transaction_records.empty?
                 @_current_transaction_records.last.concat(save_point_records)
               end
             end
@@ -266,7 +271,7 @@ module ActiveRecord
       # Inserts the given fixture into the table. Overridden in adapters that require
       # something beyond a simple insert (eg. Oracle).
       def insert_fixture(fixture, table_name)
-        columns = Hash[columns(table_name).map { |c| [c.name, c] }]
+        columns = schema_cache.columns_hash(table_name)
 
         key_list   = []
         value_list = fixture.map do |name, value|

@@ -157,11 +157,19 @@ module ActiveRecord
         binary = DualEncoding.new :name => 'いただきます！', :data => str
         binary.save!
         assert_equal str, binary.data
-
       ensure
         if "<3".respond_to?(:encode)
           DualEncoding.connection.drop_table('dual_encodings')
         end
+      end
+
+      def test_type_cast_should_not_mutate_encoding
+        return skip('only test encoding on 1.9') unless "<3".encoding_aware?
+
+        name = 'hello'.force_encoding(Encoding::ASCII_8BIT)
+        Owner.create(:name => name)
+
+        assert_equal Encoding::ASCII_8BIT, name.encoding
       end
 
       def test_execute

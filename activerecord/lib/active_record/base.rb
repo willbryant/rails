@@ -450,12 +450,12 @@ module ActiveRecord #:nodoc:
       private
 
       def relation #:nodoc:
-        @relation ||= Relation.new(self, arel_table)
+        relation = Relation.new(self, arel_table)
 
         if finder_needs_type_condition?
-          @relation.where(type_condition).create_with(inheritance_column.to_sym => sti_name)
+          relation.where(type_condition).create_with(inheritance_column.to_sym => sti_name)
         else
-          @relation
+          relation
         end
       end
     end
@@ -489,7 +489,6 @@ module ActiveRecord #:nodoc:
         @marked_for_destruction = false
         @previously_changed = {}
         @changed_attributes = {}
-        @relation = nil
 
         ensure_proper_type
 
@@ -544,7 +543,7 @@ module ActiveRecord #:nodoc:
 
         @changed_attributes = {}
         self.class.column_defaults.each do |attr, orig_value|
-          @changed_attributes[attr] = orig_value if field_changed?(attr, orig_value, @attributes[attr])
+          @changed_attributes[attr] = orig_value if _field_changed?(attr, orig_value, @attributes[attr])
         end
 
         @aggregation_cache = {}

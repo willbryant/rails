@@ -205,7 +205,7 @@ module ActiveRecord
           value = super
           if column.type == :string && value.encoding == Encoding::ASCII_8BIT
             logger.error "Binary data inserted for `string` type on column `#{column.name}`" if logger
-            value.encode! 'utf-8'
+            value = value.encode Encoding::UTF_8
           end
           value
         end
@@ -359,12 +359,12 @@ module ActiveRecord
 
       # Returns an array of indexes for the given table.
       def indexes(table_name, name = nil) #:nodoc:
-        exec_query("PRAGMA index_list(#{quote_table_name(table_name)})", name).map do |row|
+        exec_query("PRAGMA index_list(#{quote_table_name(table_name)})", 'SCHEMA').map do |row|
           IndexDefinition.new(
             table_name,
             row['name'],
             row['unique'] != 0,
-            exec_query("PRAGMA index_info('#{row['name']}')").map { |col|
+            exec_query("PRAGMA index_info('#{row['name']}')", 'SCHEMA').map { |col|
               col['name']
             })
         end
