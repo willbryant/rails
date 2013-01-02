@@ -38,7 +38,7 @@ instance_eval File.read ".Gemfile" if File.exists? ".Gemfile"
 
 platforms :mri do
   group :test do
-    gem 'ruby-prof', '~> 0.11.2'
+    gem 'ruby-prof', '~> 0.11.2' if RUBY_VERSION < '2.0'
   end
 end
 
@@ -86,3 +86,5 @@ if ENV['ORACLE_ENHANCED_PATH'] || ENV['ORACLE_ENHANCED']
     gem "activerecord-oracle_enhanced-adapter", :git => "git://github.com/rsim/oracle-enhanced.git"
   end
 end
+
+gem 'benchmark-ips'
