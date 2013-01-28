@@ -1,4 +1,86 @@
+## Rails 3.0.20 (unreleased)
+
+* Fixed JSON params parsing regression for non-object JSON content.
+
+## Rails 3.0.19 (Jan 8, 2013)
+
+* Strip nils from collections on JSON and XML posts. [CVE-2013-0155]
+
+## Rails 3.0.18 (Jan 2, 2013)
+
+* No changes.
+
+## Rails 3.0.17 (Aug 9, 2012)
+
+* There is an XSS vulnerability in the strip_tags helper in Ruby on Rails, the
+  helper doesn't correctly handle malformed html.  As a result an attacker can
+  execute arbitrary javascript through the use of specially crafted malformed
+  html.
+
+  *Marek from Nethemba (www.nethemba.com) & Santiago Pastorino*
+
+* When an "include_blank" value is supplied to the `select_tag` helper, the "include_blank" value is not escaped.  If untrusted data is not escaped, and is supplied as the prompt value, there is a potential for XSS attacks.
+  Vulnerable code will look something like this:
+    select_tag("name", options, :include_blank => UNTRUSTED_INPUT)
+
+  *Santiago Pastorino*
+
+## Rails 3.0.16 (Jul 26, 2012)
+
+* Do not convert digest auth strings to symbols. CVE-2012-3424
+
+## Rails 3.0.14 (Jun 12, 2012)
+
+*   nil is removed from array parameter values
+
+    CVE-2012-2694
+
+* Rails 3.0.13 (May 31, 2012)
+
+* Strip null bytes from Location header
+
+* load the encoding converter to work around [ruby-core:41556] when switching
+  encodings
+
+* Avoid inspecting the whole route set, closes #1525
+
+* whitelist protocols for auto_link
+
+* Strip [nil] from parameters hash. Thanks to Ben Murphy for reporting this!
+  CVE-2012-2660
+
+*Rails 3.0.12 (unreleased)*
+
+* Fix using `tranlate` helper with a html translation which uses the `:count` option for
+  pluralization.
+
+  *Jon Leighton*
+
 *Rails 3.0.11 (unreleased)*
+
+* Fix XSS security vulnerability in the `translate` helper method. When using interpolation
+  in combination with HTML-safe translations, the interpolated input would not get HTML
+  escaped. *GH 3664*
+
+  Before:
+
+      translate('foo_html', :something => '<script>') # => "...<script>..."
+
+  After:
+
+      translate('foo_html', :something => '<script>') # => "...&lt;script&gt;..."
+
+  *Sergey Nartimov*
+
+* Implement a workaround for a bug in ruby-1.9.3p0 where an error would be
+  raised while attempting to convert a template from one encoding to another.
+
+  Please see http://redmine.ruby-lang.org/issues/5564 for details of the bug.
+
+  The workaround is to load all conversions into memory ahead of time, and will
+  only happen if the ruby version is exactly 1.9.3p0. The hope is obviously
+  that the underlying problem will be resolved in the next patchlevel release
+  of 1.9.3.
 
 * Fix assert_select_email to work on multipart and non-multipart emails as the method stopped working correctly in Rails 3.x due to changes in the new mail gem.
 

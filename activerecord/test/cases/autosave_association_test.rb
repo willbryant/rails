@@ -3,8 +3,10 @@ require 'models/bird'
 require 'models/company'
 require 'models/customer'
 require 'models/developer'
+require 'models/face'
 require 'models/invoice'
 require 'models/line_item'
+require 'models/man'
 require 'models/order'
 require 'models/parrot'
 require 'models/person'
@@ -590,7 +592,9 @@ class TestDestroyAsPartOfAutosaveAssociation < ActiveRecord::TestCase
   def test_a_child_marked_for_destruction_should_not_be_destroyed_twice
     @pirate.ship.mark_for_destruction
     assert @pirate.save
-    @pirate.ship.expects(:destroy).never
+    class << @pirate.ship
+      def destroy; raise "Should not be called" end
+    end
     assert @pirate.save
   end
 
@@ -635,7 +639,9 @@ class TestDestroyAsPartOfAutosaveAssociation < ActiveRecord::TestCase
   def test_a_parent_marked_for_destruction_should_not_be_destroyed_twice
     @ship.pirate.mark_for_destruction
     assert @ship.save
-    @ship.pirate.expects(:destroy).never
+    class << @ship.pirate
+      def destroy; raise "Should not be called" end
+    end
     assert @ship.save
   end
 
@@ -703,7 +709,11 @@ class TestDestroyAsPartOfAutosaveAssociation < ActiveRecord::TestCase
 
       children.each { |child| child.mark_for_destruction }
       assert @pirate.save
-      children.each { |child| child.expects(:destroy).never }
+      children.each { |child|
+        class << child
+          def destroy; raise "Should not be called" end
+        end
+      }
       assert @pirate.save
     end
 
@@ -877,6 +887,16 @@ class TestAutosaveAssociationOnAHasOneAssociation < ActiveRecord::TestCase
 
   def test_should_not_load_the_associated_model
     assert_queries(1) { @pirate.catchphrase = 'Arr'; @pirate.save! }
+  end
+end
+
+class TestAutosaveInverseAssociationOnAHasOneAssociation < ActiveRecord::TestCase
+  self.use_transactional_fixtures = false
+
+  def test_should_save_the_inverse_association_model
+    man = Man.new
+    man.build_face
+    man.face.save
   end
 end
 

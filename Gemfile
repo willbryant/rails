@@ -3,7 +3,7 @@ source 'http://rubygems.org'
 gemspec
 
 gem "rake",  ">= 0.8.7"
-gem "mocha", ">= 0.9.8"
+gem 'mocha', '>= 0.13.0', :require => false
 
 group :doc do
   gem "rdoc",  "~> 3.4"
@@ -39,9 +39,9 @@ platforms :ruby do
   gem "sqlite3", "~> 1.3.3"
 
   group :db do
-    gem "pg", ">= 0.9.0" unless ENV['TRAVIS'] # once pg is on travis this can be removed
+    gem "pg", ">= 0.9.0"
     gem "mysql", ">= 2.8.1"
-    gem "mysql2", "~> 0.2.13"
+    gem "mysql2", :git => "git://github.com/brianmario/mysql2.git", :branch => "0.2.x"
   end
 end
 

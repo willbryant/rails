@@ -311,7 +311,7 @@ class TextHelperTest < ActionView::TestCase
       http://en.wikipedia.org/wiki/Wikipedia:Today%27s_featured_picture_%28animation%29/January_20%2C_2007
       http://www.mail-archive.com/rails@lists.rubyonrails.org/
       http://www.amazon.com/Testing-Equal-Sign-In-Path/ref=pd_bbs_sr_1?ie=UTF8&s=books&qid=1198861734&sr=8-1
-      http://en.wikipedia.org/wiki/Texas_hold'em
+      http://en.wikipedia.org/wiki/Texas_hold
       https://www.google.com/doku.php?id=gps:resource:scs:start
       http://connect.oraclecorp.com/search?search[q]=green+france&search[type]=Group
       http://of.openfoundry.org/projects/492/download#4th.Release.3
@@ -452,15 +452,6 @@ class TextHelperTest < ActionView::TestCase
   def test_auto_link_other_protocols
     ftp_raw = 'ftp://example.com/file.txt'
     assert_equal %(Download #{generate_result(ftp_raw)}), auto_link("Download #{ftp_raw}")
-
-    file_scheme   = 'file:///home/username/RomeoAndJuliet.pdf'
-    z39_scheme    = 'z39.50r://host:696/db'
-    chrome_scheme = 'chrome://package/section/path'
-    view_source   = 'view-source:http://en.wikipedia.org/wiki/URI_scheme'
-    assert_equal generate_result(file_scheme), auto_link(file_scheme)
-    assert_equal generate_result(z39_scheme), auto_link(z39_scheme)
-    assert_equal generate_result(chrome_scheme), auto_link(chrome_scheme)
-    assert_equal generate_result(view_source), auto_link(view_source)
   end
 
   def test_auto_link_already_linked

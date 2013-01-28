@@ -30,6 +30,21 @@ class JsonParamsParsingTest < ActionController::IntegrationTest
     )
   end
 
+  test "nils are stripped from collections" do
+    assert_parses(
+      {"person" => nil},
+      "{\"person\":[null]}", { 'CONTENT_TYPE' => 'application/json' }
+    )
+    assert_parses(
+      {"person" => ['foo']},
+      "{\"person\":[\"foo\",null]}", { 'CONTENT_TYPE' => 'application/json' }
+    )
+    assert_parses(
+      {"person" => nil},
+      "{\"person\":[null, null]}", { 'CONTENT_TYPE' => 'application/json' }
+    )
+  end
+
   test "logs error if parsing unsuccessful" do
     with_test_routing do
       begin
@@ -43,6 +58,13 @@ class JsonParamsParsingTest < ActionController::IntegrationTest
         $stderr = STDERR
       end
     end
+  end
+
+  test "parses json with non-object JSON content" do
+    assert_parses(
+      {"_json" => "string content" },
+      "\"string content\"", { 'CONTENT_TYPE' => 'application/json' }
+    )
   end
 
   private
