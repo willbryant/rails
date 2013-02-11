@@ -10,7 +10,7 @@ require "fixtures/subscription_plan"
 require 'active_support/json'
 require 'active_support/ordered_hash'
 require 'active_support/core_ext/hash/conversions'
-require 'mocha'
+require 'mocha/setup'
 
 class BaseTest < Test::Unit::TestCase
   def setup
@@ -1043,19 +1043,6 @@ class BaseTest < Test::Unit::TestCase
         end
       end
     end
-  end
-
-  def test_load_yaml_array
-    assert_nothing_raised do
-      Person.format = :xml
-      marty = Person.find(5)
-      assert_equal 3, marty.colors.size
-      marty.colors.each do |color|
-        assert_kind_of String, color
-      end
-    end
-  ensure
-    Person.format = :json
   end
 
   def test_with_custom_formatter
