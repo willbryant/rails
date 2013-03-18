@@ -1,4 +1,11 @@
-## Rails 3.1.11 (unreleased) ##
+## unreleased ##
+
+*   Reverted 921a296a3390192a71abeec6d9a035cc6d1865c8, 'Quote numeric values
+    compared to string columns.' This caused several regressions.
+
+    *Steve Klabnik*
+
+## Rails 3.1.11 (Feb 11, 2011) ##
 
 ## Rails 3.1.10 (Jan 8, 2013) ##
 
