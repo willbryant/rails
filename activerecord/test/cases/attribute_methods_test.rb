@@ -676,6 +676,15 @@ class AttributeMethodsTest < ActiveRecord::TestCase
     end
   end
 
+  def test_setting_time_zone_unaware_attribute_interprets_date_in_local_time
+    in_time_zone nil do
+      record   = @target.new
+      record.written_on = Date.civil(2008, 1, 1)
+      assert_equal Date.civil(2008, 1, 1), record.written_on.to_date
+      assert_equal Time.local(2008, 1, 1), record.written_on
+    end
+  end
+
   def test_setting_time_zone_aware_attribute_in_current_time_zone
     utc_time = Time.utc(2008, 1, 1)
     in_time_zone "Pacific Time (US & Canada)" do

@@ -62,7 +62,7 @@ module ActiveRecord
     class MysqlAdapter < AbstractMysqlAdapter
 
       class Column < AbstractMysqlAdapter::Column #:nodoc:
-        def self.string_to_time(value)
+        def self.value_to_time(value)
           return super unless Mysql::Time === value
           new_time(
             value.year,

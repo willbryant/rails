@@ -40,8 +40,8 @@ module ActiveRecord
       # :stopdoc:
       class << self
         attr_accessor :money_precision
-        def string_to_time(string)
-          return string unless String === string
+        def value_to_time(string)
+          return super unless String === string
 
           case string
           when 'infinity'  then 1.0 / 0.0
