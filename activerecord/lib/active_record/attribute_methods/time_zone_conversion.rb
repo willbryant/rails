@@ -44,6 +44,7 @@ module ActiveRecord
                 def #{attr_name}=(original_time)
                   time = original_time
                   unless time.acts_like?(:time)
+                    time = time.to_s if time.is_a?(Date)
                     time = time.is_a?(String) ? Time.zone.parse(time) : time.to_time rescue time
                   end
                   time = time.in_time_zone rescue nil if time
