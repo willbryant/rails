@@ -62,7 +62,7 @@ module ActiveRecord
           new_time(2000, 01, 01, v.hour, v.minute, v.second, v.second_part)
         end
 
-        def string_to_date(v)
+        def value_to_date(v)
           return super unless Mysql::Time === v
           new_date(v.year, v.month, v.day)
         end
