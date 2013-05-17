@@ -40,6 +40,7 @@ module ActiveRecord
                   original_time = nil if original_time.blank?
                   time = original_time
                   unless time.acts_like?(:time)
+                    time = time.to_s if time.is_a?(Date)
                     time = time.is_a?(String) ? Time.zone.parse(time) : time.to_time rescue time
                   end
                   zoned_time   = time && time.in_time_zone rescue nil
