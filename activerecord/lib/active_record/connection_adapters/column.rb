@@ -78,7 +78,7 @@ module ActiveRecord
         when :integer              then value.to_i rescue value ? 1 : 0
         when :float                then value.to_f
         when :decimal              then klass.value_to_decimal(value)
-        when :datetime, :timestamp then klass.string_to_time(value)
+        when :datetime, :timestamp then klass.value_to_time(value)
         when :time                 then klass.string_to_dummy_time(value)
         when :date                 then klass.value_to_date(value)
         when :binary               then klass.binary_to_string(value)
@@ -95,7 +95,7 @@ module ActiveRecord
         when :integer              then "(#{var_name}.to_i rescue #{var_name} ? 1 : 0)"
         when :float                then "#{var_name}.to_f"
         when :decimal              then "#{klass}.value_to_decimal(#{var_name})"
-        when :datetime, :timestamp then "#{klass}.string_to_time(#{var_name})"
+        when :datetime, :timestamp then "#{klass}.value_to_time(#{var_name})"
         when :time                 then "#{klass}.string_to_dummy_time(#{var_name})"
         when :date                 then "#{klass}.value_to_date(#{var_name})"
         when :binary               then "#{klass}.binary_to_string(#{var_name})"
@@ -143,18 +143,24 @@ module ActiveRecord
           end
         end
 
-        def string_to_time(string)
-          return string unless string.is_a?(String)
-          return nil if string.empty?
-
-          fast_string_to_time(string) || fallback_string_to_time(string)
+        def value_to_time(value)
+          if value.is_a?(String)
+            return nil if value.empty?
+            fast_string_to_time(value) || fallback_string_to_time(value)
+          elsif value.acts_like?(:time) || !value.respond_to?(:to_time)
+            value
+          elsif value.is_a?(Date)
+            new_time(value.year, value.mon, value.mday, 0, 0, 0, 0)
+          else
+            value.to_time
+          end
         end
 
         def string_to_dummy_time(string)
           return string unless string.is_a?(String)
           return nil if string.empty?
 
-          string_to_time "2000-01-01 #{string}"
+          value_to_time "2000-01-01 #{string}"
         end
 
         # convert something to a boolean

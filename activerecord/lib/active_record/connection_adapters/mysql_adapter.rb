@@ -45,7 +45,7 @@ module ActiveRecord
   module ConnectionAdapters
     class MysqlColumn < Column #:nodoc:
       class << self
-        def string_to_time(value)
+        def value_to_time(value)
           return super unless Mysql::Time === value
           new_time(
             value.year,
