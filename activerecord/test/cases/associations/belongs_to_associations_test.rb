@@ -14,6 +14,8 @@ require 'models/sponsor'
 require 'models/member'
 require 'models/essay'
 require 'models/toy'
+require 'models/person'
+require 'models/reader'
 
 class BelongsToAssociationsTest < ActiveRecord::TestCase
   fixtures :accounts, :companies, :developers, :projects, :topics,
@@ -385,6 +387,26 @@ class BelongsToAssociationsTest < ActiveRecord::TestCase
     assert_equal 15, topic.replies.size
   end
 
+  def test_counter_cache_double_destroy
+    topic = Topic.create :title => "Zoom-zoom-zoom"
+
+    5.times do
+      topic.replies.create(:title => "re: zoom", :content => "speedy quick!")
+    end
+
+    assert_equal 5, topic.reload[:replies_count]
+    assert_equal 5, topic.replies.size
+
+    reply = topic.replies.first
+
+    reply.destroy
+    assert_equal 4, topic.reload[:replies_count]
+
+    reply.destroy
+    assert_equal 4, topic.reload[:replies_count]
+    assert_equal 4, topic.replies.size
+  end
+
   def test_custom_counter_cache
     reply = Reply.create(:title => "re: zoom", :content => "speedy quick!")
     assert_equal 0, reply[:replies_count]
@@ -715,5 +737,17 @@ class BelongsToAssociationsTest < ActiveRecord::TestCase
     sponsor = Sponsor.create!(:sponsorable => toy)
 
     assert_equal toy, sponsor.reload.sponsorable
+  end
+
+  def test_saving_nested_association
+    post1, post2 = Post.limit(2)
+    person = Person.new(:first_name => 'foo')
+    reader = Reader.new(:post => post1)
+
+    reader.post_id = post2.id
+    person.readers = [reader]
+
+    assert person.save
+    assert_equal reader.post_id, post2.id
   end
 end

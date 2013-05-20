@@ -154,6 +154,14 @@ module Rails
       self
     end
 
+    # Load the application runner and invoke the registered hooks.
+    # Check <tt>Rails::Railtie.runner</tt> for more info.
+    def load_runner(app=self)
+      initialize_runner
+      super
+      self
+    end
+
     # Rails.application.env_config stores some of the Rails initial environment parameters.
     # Currently stores:
     #
@@ -167,7 +175,7 @@ module Rails
     # These parameters will be used by middlewares and engines to configure themselves.
     #
     def env_config
-      @env_config ||= super.merge({
+      @app_env_config ||= super.merge({
         "action_dispatch.parameter_filter" => config.filter_parameters,
         "action_dispatch.secret_token" => config.secret_token,
         "action_dispatch.show_exceptions" => config.action_dispatch.show_exceptions,
@@ -303,6 +311,9 @@ module Rails
       require "pp"
       require "rails/console/app"
       require "rails/console/helpers"
+    end
+
+    def initialize_runner #:nodoc:
     end
 
     def build_original_fullpath(env)

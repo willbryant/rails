@@ -30,8 +30,7 @@ module ActiveRecord
     end
 
     def test_binds_are_logged
-      # FIXME: use skip with minitest
-      return unless @connection.supports_statement_cache?
+      return skip_bind_parameter_test unless supports_statement_cache?
 
       sub   = @connection.substitute_at(@pk, 0)
       binds = [[@pk, 1]]
@@ -44,8 +43,7 @@ module ActiveRecord
     end
 
     def test_find_one_uses_binds
-      # FIXME: use skip with minitest
-      return unless @connection.supports_statement_cache?
+      return skip_bind_parameter_test unless supports_statement_cache?
 
       Topic.find(1)
       binds = [[@pk, 1]]
@@ -54,8 +52,7 @@ module ActiveRecord
     end
 
     def test_logs_bind_vars
-      # FIXME: use skip with minitest
-      return unless @connection.supports_statement_cache?
+      return skip_bind_parameter_test unless supports_statement_cache?
 
       pk = Topic.columns.find { |x| x.primary }
 
@@ -85,6 +82,16 @@ module ActiveRecord
 
         logger.sql event
         assert_match([[pk.name, 10]].inspect, logger.debugs.first)
+    end
+
+    private
+
+    def skip_bind_parameter_test
+      skip('prepared statement caching is not supported')
+    end
+
+    def supports_statement_cache?
+      @connection.supports_statement_cache?
     end
   end
 end

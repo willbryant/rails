@@ -30,6 +30,7 @@ module ActiveRecord
     )
 
     rake_tasks do
+      require "active_record/base"
       load "active_record/railties/databases.rake"
     end
 
@@ -38,7 +39,12 @@ module ActiveRecord
     # first time. Also, make it output to STDERR.
     console do |app|
       require "active_record/railties/console_sandbox" if app.sandbox?
+      require "active_record/base"
       ActiveRecord::Base.logger = Logger.new(STDERR)
+    end
+
+    runner do |app|
+      require "active_record/base"
     end
 
     initializer "active_record.initialize_timezone" do
@@ -80,13 +86,6 @@ module ActiveRecord
         Rails.logger.info "Connecting to database specified by #{db_connection_type}"
 
         establish_connection
-      end
-    end
-
-    initializer "active_record.validate_explain_support" do |app|
-      if app.config.active_record[:auto_explain_threshold_in_seconds] &&
-        !ActiveRecord::Base.connection.supports_explain?
-        warn "auto_explain_threshold_in_seconds is set but will be ignored because your adapter does not support this feature. Please unset the configuration to avoid this warning."
       end
     end
 

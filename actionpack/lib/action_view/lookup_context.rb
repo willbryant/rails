@@ -44,7 +44,13 @@ module ActionView
     module Accessors #:nodoc:
     end
 
-    register_detail(:locale)  { [I18n.locale, I18n.default_locale].uniq }
+    register_detail(:locale) do
+      locales = [I18n.locale]
+      locales.concat(I18n.fallbacks[I18n.locale]) if I18n.respond_to? :fallbacks
+      locales << I18n.default_locale
+      locales.uniq!
+      locales
+    end
     register_detail(:formats) { Mime::SET.symbols }
     register_detail(:handlers){ Template::Handlers.extensions }
 
@@ -97,7 +103,7 @@ module ActionView
 
     # Helpers related to template lookup using the lookup context information.
     module ViewPaths
-      attr_reader :view_paths
+      attr_reader :view_paths, :html_fallback_for_js
 
       # Whenever setting view paths, makes a copy so we can manipulate then in
       # instance objects as we wish.
@@ -194,7 +200,10 @@ module ActionView
     def formats=(values)
       if values
         values.concat(default_formats) if values.delete "*/*"
-        values << :html if values == [:js]
+        if values == [:js]
+          values << :html
+          @html_fallback_for_js = true
+        end
       end
       super(values)
     end
