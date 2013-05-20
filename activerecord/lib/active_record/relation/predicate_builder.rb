@@ -6,7 +6,12 @@ module ActiveRecord
 
         if allow_table_name && value.is_a?(Hash)
           table = Arel::Table.new(column, engine)
-          build_from_hash(engine, value, table, false)
+
+          if value.empty?
+            '1 = 2'
+          else
+            build_from_hash(engine, value, table, false)
+          end
         else
           column = column.to_s
 
@@ -15,7 +20,7 @@ module ActiveRecord
             table = Arel::Table.new(table_name, engine)
           end
 
-          attribute = table[column.to_sym]
+          attribute = table[column]
 
           case value
           when ActiveRecord::Relation

@@ -889,6 +889,20 @@ if ActiveRecord::Base.connection.supports_migrations?
       ActiveRecord::Base.connection.drop_table(:hats) rescue nil
     end
 
+    def test_removing_and_renaming_column_preserves_custom_primary_key
+      ActiveRecord::Base.connection.create_table "my_table", :primary_key => "my_table_id", :force => true do |t|
+        t.integer "col_one"
+        t.string "col_two", :limit => 128, :null => false
+      end
+
+      ActiveRecord::Base.connection.remove_column("my_table", "col_two")
+      ActiveRecord::Base.connection.rename_column("my_table", "col_one", "col_three")
+
+      assert_equal 'my_table_id', ActiveRecord::Base.connection.primary_key('my_table')
+    ensure
+      ActiveRecord::Base.connection.drop_table(:my_table) rescue nil
+    end
+
     def test_change_type_of_not_null_column
       assert_nothing_raised do
         Topic.connection.change_column "topics", "written_on", :datetime, :null => false
@@ -1049,6 +1063,18 @@ if ActiveRecord::Base.connection.supports_migrations?
       assert !Person.new.administrator?
     ensure
       Person.connection.remove_column("people", "administrator") rescue nil
+    end
+
+    def test_change_column_with_custom_index_name
+      Person.connection.add_column "people", "category", :string, :default => 'human'
+      Person.connection.add_index :people, :category, :name => 'people_categories_idx'
+
+      assert_equal ['people_categories_idx'], Person.connection.indexes('people').map(&:name)
+      Person.connection.change_column "people", "category", :string, :null => false, :default => 'article'
+
+      assert_equal ['people_categories_idx'], Person.connection.indexes('people').map(&:name)
+    ensure
+      Person.connection.remove_column("people", "category") rescue nil
     end
 
     def test_change_column_default
@@ -1428,6 +1454,12 @@ if ActiveRecord::Base.connection.supports_migrations?
         assert_equal pair.first, migrations[i].version
         assert_equal pair.last, migrations[i].name
       end
+    end
+
+    def test_finds_migrations_in_numbered_directory
+      migrations = ActiveRecord::Migrator.migrations [MIGRATIONS_ROOT + '/10_urban']
+      assert_equal 9, migrations[0].version
+      assert_equal 'AddExpressions', migrations[0].name
     end
 
     def test_dump_schema_information_outputs_lexically_ordered_versions

@@ -13,6 +13,8 @@ class Time
     :rfc822       => lambda { |time| time.strftime("%a, %d %b %Y %H:%M:%S #{time.formatted_offset(false)}") }
   }
 
+  DATE_FORMATS[:nsec] = '%Y%m%d%H%M%S%9N' if RUBY_VERSION >= '1.9'
+
   # Converts to a formatted string. See DATE_FORMATS for builtin formats.
   #
   # This method is aliased to <tt>to_s</tt>.

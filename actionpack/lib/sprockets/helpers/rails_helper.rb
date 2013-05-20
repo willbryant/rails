@@ -31,7 +31,7 @@ module Sprockets
           else
             super(source.to_s, { :src => path_to_asset(source, :ext => 'js', :body => body, :digest => digest) }.merge!(options))
           end
-        end.uniq.join("\n").html_safe
+        end.flatten.uniq.join("\n").html_safe
       end
 
       def stylesheet_link_tag(*sources)
@@ -48,7 +48,7 @@ module Sprockets
           else
             super(source.to_s, { :href => path_to_asset(source, :ext => 'css', :body => body, :protocol => :request, :digest => digest) }.merge!(options))
           end
-        end.uniq.join("\n").html_safe
+        end.flatten.uniq.join("\n").html_safe
       end
 
       def asset_path(source, options = {})
@@ -157,17 +157,24 @@ module Sprockets
         end
 
         def rewrite_extension(source, dir, ext)
-          source_ext = File.extname(source)
-          if ext && source_ext != ".#{ext}"
-            if !source_ext.empty? && (asset = asset_environment[source]) &&
-                  asset.pathname.to_s =~ /#{source}\Z/
-              source
-            else
-              "#{source}.#{ext}"
-            end
-          else
+          source_ext = File.extname(source)[1..-1]
+
+          if !ext || ext == source_ext
             source
+          elsif source_ext.blank?
+            "#{source}.#{ext}"
+          elsif exact_match_present?(source)
+            source
+          else
+            "#{source}.#{ext}"
           end
+        end
+
+        def exact_match_present?(source)
+          pathname = asset_environment.resolve(source)
+          pathname.to_s =~ /#{Regexp.escape(source)}\Z/
+        rescue Sprockets::FileNotFound
+          false
         end
       end
     end

@@ -1,4 +1,5 @@
 require "cases/helper"
+require 'models/company'
 
 module ActiveRecord
   module ConnectionAdapters
@@ -40,12 +41,27 @@ module ActiveRecord
 
       def test_type_cast_non_integer_to_integer
         column = Column.new("field", nil, "integer")
-        assert_raises(NoMethodError) do
-          column.type_cast([])
-        end
+        assert_nil column.type_cast([1,2])
+        assert_nil column.type_cast({1 => 2})
+        assert_nil column.type_cast((1..2))
+      end
 
-        assert_raises(NoMethodError) do
-          column.type_cast(Object.new)
+      def test_type_cast_activerecord_to_integer
+        column = Column.new("field", nil, "integer")
+        firm = Firm.create(:name => 'Apple')
+        assert_nil column.type_cast(firm)
+      end
+
+      def test_type_cast_object_without_to_i_to_integer
+        column = Column.new("field", nil, "integer")
+        assert_nil column.type_cast(Object.new)
+      end
+
+      if RUBY_VERSION > '1.9'
+        def test_type_cast_nan_and_infinity_to_integer
+          column = Column.new("field", nil, "integer")
+          assert_nil column.type_cast(Float::NAN)
+          assert_nil column.type_cast(1.0/0.0)
         end
       end
     end

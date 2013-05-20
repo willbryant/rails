@@ -266,6 +266,15 @@ class SprocketsHelperTest < ActionView::TestCase
       javascript_include_tag('/javascripts/application')
     assert_match %r{<script src="/assets/xmlhr-[0-9a-f]+.js\?body=1" type="text/javascript"></script>\n<script src="/assets/application-[0-9a-f]+.js\?body=1" type="text/javascript"></script>},
       javascript_include_tag(:application)
+    assert_match %r{<script src="/assets/xmlhr-[0-9a-f]+.js\?body=1" type="text/javascript"></script>\n<script src="/assets/application-[0-9a-f]+.js\?body=1" type="text/javascript"></script>\n<script src="/assets/extra-[0-9a-f]+.js\?body=1" type="text/javascript"></script>},
+      javascript_include_tag(:application, :extra)
+  end
+
+  test "precompiled assets with an extension when no JS runtime is available" do
+    @config.assets.compile = false
+    @config.assets.digests = {'foo.min.js' => 'foo.min-f00.js'}
+    Sprockets::Index.any_instance.stubs(:build_asset).raises
+    assert_nothing_raised { javascript_include_tag('foo.min') }
   end
 
   test "stylesheet path through asset_path" do
@@ -323,6 +332,9 @@ class SprocketsHelperTest < ActionView::TestCase
 
     assert_match %r{<link href="/assets/style-[0-9a-f]+.css\?body=1" media="screen" rel="stylesheet" type="text/css" />\n<link href="/assets/application-[0-9a-f]+.css\?body=1" media="screen" rel="stylesheet" type="text/css" />},
       stylesheet_link_tag(:application)
+
+    assert_match %r{<link href="/assets/style-[0-9a-f]+.css\?body=1" media="screen" rel="stylesheet" type="text/css" />\n<link href="/assets/application-[0-9a-f]+.css\?body=1" media="screen" rel="stylesheet" type="text/css" />\n<link href="/assets/extra-[0-9a-f]+.css\?body=1" media="screen" rel="stylesheet" type="text/css" />},
+      stylesheet_link_tag(:application, :extra)
 
     assert_match %r{<link href="/assets/style-[0-9a-f]+.css\?body=1" media="print" rel="stylesheet" type="text/css" />\n<link href="/assets/application-[0-9a-f]+.css\?body=1" media="print" rel="stylesheet" type="text/css" />},
       stylesheet_link_tag(:application, :media => "print")

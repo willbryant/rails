@@ -38,7 +38,7 @@ module ActionDispatch
         when Proc
           strategy.call(request.raw_post)
         when :xml_simple, :xml_node
-          data = Hash.from_xml(request.body.read) || {}
+          data = request.deep_munge(Hash.from_xml(request.body.read) || {})
           request.body.rewind if request.body.respond_to?(:rewind)
           data.with_indifferent_access
         when :yaml
@@ -47,7 +47,7 @@ module ActionDispatch
           data = ActiveSupport::JSON.decode(request.body)
           request.body.rewind if request.body.respond_to?(:rewind)
           data = {:_json => data} unless data.is_a?(Hash)
-          data.with_indifferent_access
+          request.deep_munge(data).with_indifferent_access
         else
           false
         end

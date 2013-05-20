@@ -177,10 +177,15 @@ module ActiveRecord
     #   Person.where(:confirmed => true).limit(5).pluck(:id)
     #
     def pluck(column_name)
-      column_name = column_name.to_s
+      if column_name.is_a?(Symbol) && column_names.include?(column_name.to_s)
+        column_name = "#{connection.quote_table_name(table_name)}.#{connection.quote_column_name(column_name)}"
+      else
+        column_name = column_name.to_s
+      end
+
       relation = clone
       relation.select_values = [column_name]
-      klass.connection.select_all(relation.arel, nil, bind_values).map! do |attributes|
+      klass.connection.select_all(relation.arel).map! do |attributes|
         klass.type_cast_attribute(attributes.keys.first, klass.initialize_attributes(attributes))
       end
     end
@@ -190,7 +195,8 @@ module ActiveRecord
     def perform_calculation(operation, column_name, options = {})
       operation = operation.to_s.downcase
 
-      distinct = options[:distinct]
+      # If #count is used in conjuction with #uniq it is considered distinct. (eg. relation.uniq.count)
+      distinct = options[:distinct] || self.uniq_value
 
       if operation == "count"
         column_name ||= (select_for_count || :all)
@@ -242,8 +248,7 @@ module ActiveRecord
         query_builder = relation.arel
       end
 
-      result = @klass.connection.select_value(query_builder, nil, relation.bind_values)
-      type_cast_calculated_value(result, column_for(column_name), operation)
+      type_cast_calculated_value(@klass.connection.select_value(query_builder), column_for(column_name), operation)
     end
 
     def execute_grouped_calculation(operation, column_name, distinct) #:nodoc:
@@ -289,7 +294,7 @@ module ActiveRecord
       relation = except(:group).group(group)
       relation.select_values = select_values
 
-      calculated_data = @klass.connection.select_all(relation, nil, bind_values)
+      calculated_data = @klass.connection.select_all(relation)
 
       if association
         key_ids     = calculated_data.collect { |row| row[group_aliases.first] }

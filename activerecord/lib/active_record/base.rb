@@ -479,7 +479,8 @@ module ActiveRecord #:nodoc:
       #   # Instantiates a single new object bypassing mass-assignment security
       #   User.new({ :first_name => 'Jamie', :is_admin => true }, :without_protection => true)
       def initialize(attributes = nil, options = {})
-        @attributes = self.class.initialize_attributes(self.class.column_defaults.dup)
+        defaults = Hash[self.class.column_defaults.map { |k, v| [k, v.duplicable? ? v.dup : v] }]
+        @attributes = self.class.initialize_attributes(defaults)
         @association_cache = {}
         @aggregation_cache = {}
         @attributes_cache = {}
@@ -552,12 +553,11 @@ module ActiveRecord #:nodoc:
         @new_record  = true
 
         ensure_proper_type
-        populate_with_current_scope_attributes
         super
       end
 
       # Backport dup from 1.9 so that initialize_dup() gets called
-      unless Object.respond_to?(:initialize_dup)
+      unless Object.respond_to?(:initialize_dup, true)
         def dup # :nodoc:
           copy = super
           copy.initialize_dup(self)

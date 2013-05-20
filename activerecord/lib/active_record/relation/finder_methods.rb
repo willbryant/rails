@@ -199,7 +199,7 @@ module ActiveRecord
         relation = relation.where(table[primary_key].eq(id)) if id
       end
 
-      connection.select_value(relation, "#{name} Exists", relation.bind_values) ? true : false
+      connection.select_value(relation, "#{name} Exists") ? true : false
     rescue ThrowResult
       false
     end
@@ -253,9 +253,11 @@ module ActiveRecord
       orders = relation.order_values.map { |val| val.presence }.compact
       values = @klass.connection.distinct("#{@klass.connection.quote_table_name table_name}.#{primary_key}", orders)
 
-      relation = relation.dup
+      relation = relation.dup.select(values)
 
-      ids_array = relation.select(values).collect {|row| row[primary_key]}
+      id_rows = @klass.connection.select_all(relation.arel, 'SQL', relation.bind_values)
+      ids_array = id_rows.map {|row| row[primary_key]}
+
       ids_array.empty? ? raise(ThrowResult) : table[primary_key].in(ids_array)
     end
 
@@ -332,7 +334,7 @@ module ActiveRecord
 
       substitute = connection.substitute_at(column, @bind_values.length)
       relation = where(table[primary_key].eq(substitute))
-      relation.bind_values += [[column, id]]
+      relation.bind_values = [[column, id]]
       record = relation.first
 
       unless record

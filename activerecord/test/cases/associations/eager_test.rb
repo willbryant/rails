@@ -592,7 +592,6 @@ class EagerAssociationTest < ActiveRecord::TestCase
   # gets raw row hashes from the database and then instantiates them, this test ensures that
   # it only instantiates one actual object per record from the database.
   def test_has_and_belongs_to_many_should_not_instantiate_same_records_multiple_times
-    welcome    = posts(:welcome)
     categories = Category.includes(:posts)
 
     general    = categories.find { |c| c == categories(:general) }
@@ -916,6 +915,12 @@ class EagerAssociationTest < ActiveRecord::TestCase
     assert_equal 3, Developer.find(:all, :include => 'projects', :conditions => 'developers_projects.access_level = 1', :limit => 5).size
   end
 
+  def test_dont_create_temporary_active_record_instances
+    Developer.instance_count = 0
+    developers = Developer.find(:all, :include => 'projects', :conditions => 'developers_projects.access_level = 1', :limit => 5).to_a
+    assert_equal developers.count, Developer.instance_count
+  end
+
   def test_order_on_join_table_with_include_and_limit
     assert_equal 5, Developer.find(:all, :include => 'projects', :order => 'developers_projects.joined_on DESC', :limit => 5).size
   end
@@ -1106,5 +1111,11 @@ class EagerAssociationTest < ActiveRecord::TestCase
     assert_nothing_raised(ActiveRecord::StatementInvalid) do
       Post.includes(:comments).order(nil).where(:comments => {:body => "Thank you for the welcome"}).first
     end
+  end
+
+  test "preloading does not cache has many association subset when preloaded with a through association" do
+    author = Author.order(:id).includes(:comments_with_order_and_conditions, :posts).first
+    assert_no_queries { assert_equal 2, author.comments_with_order_and_conditions.size }
+    assert_no_queries { assert_equal 5, author.posts.size, "should not cache a subset of the association" }
   end
 end

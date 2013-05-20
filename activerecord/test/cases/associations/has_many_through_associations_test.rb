@@ -346,6 +346,17 @@ class HasManyThroughAssociationsTest < ActiveRecord::TestCase
     end
   end
 
+  def test_update_counter_caches_on_replace_association
+    post = posts(:welcome)
+    tag  = post.tags.create!(:name => 'doomed')
+    tag.tagged_posts << posts(:thinking)
+
+    tag.tagged_posts = []
+    post.reload
+
+    assert_equal(post.taggings.count, post.taggings_count)
+  end
+
   def test_replace_association
     assert_queries(4){posts(:welcome);people(:david);people(:michael); posts(:welcome).people(true)}
 
@@ -856,11 +867,6 @@ class HasManyThroughAssociationsTest < ActiveRecord::TestCase
       c = Category.create(:name => 'Fishing', :authors => [Author.first])
       c.save
     end
-  end
-
-  def test_assign_array_to_new_record_builds_join_records
-    c = Category.new(:name => 'Fishing', :authors => [Author.first])
-    assert_equal 1, c.categorizations.size
   end
 
   def test_create_bang_should_raise_exception_when_join_record_has_errors
