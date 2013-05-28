@@ -79,6 +79,7 @@ module ActiveRecord
         end
 
         def locked?(arel)
+          arel = arel.arel if arel.respond_to?(:arel)
           if arel.respond_to?(:locked)
             arel.locked
           else

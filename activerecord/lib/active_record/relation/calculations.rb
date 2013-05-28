@@ -364,7 +364,7 @@ module ActiveRecord
       relation.select_values = [aliased_column]
       subquery = relation.arel.as(subquery_alias)
 
-      sm = Arel::SelectManager.new relation.engine
+      sm = Arel::SelectManager.new relation.arel.engine
       select_value = operation_over_aggregate_column(column_alias, 'count', distinct)
       sm.project(select_value).from(subquery)
     end

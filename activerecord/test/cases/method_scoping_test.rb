@@ -275,7 +275,7 @@ class NestedScopingTest < ActiveRecord::TestCase
       Developer.send(:with_scope, :find => { :limit => 10 }) do
         devs = Developer.scoped
         assert_match '(salary = 80000)', devs.to_sql
-        assert_equal 10, devs.taken
+        assert_equal 10, devs.arel.taken
       end
     end
   end
@@ -283,7 +283,7 @@ class NestedScopingTest < ActiveRecord::TestCase
   def test_merge_inner_scope_has_priority
     Developer.send(:with_scope, :find => { :limit => 5 }) do
       Developer.send(:with_scope, :find => { :limit => 10 }) do
-        assert_equal 10, Developer.scoped.taken
+        assert_equal 10, Developer.scoped.arel.taken
       end
     end
   end
@@ -322,7 +322,7 @@ class NestedScopingTest < ActiveRecord::TestCase
       Developer.send(:with_scope, :find => { :conditions => "name = 'David'" }) do
         devs = Developer.scoped
         assert_match "(salary = 80000) AND (name = 'David')", devs.to_sql
-        assert_equal 10, devs.taken
+        assert_equal 10, devs.arel.taken
       end
     end
   end
