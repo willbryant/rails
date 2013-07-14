@@ -1324,6 +1324,33 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
     assert !company.clients.loaded?
   end
 
+  def test_get_ids_for_association_on_new_record_does_not_try_to_find_records
+    Company.columns  # Load schema information so we don't query below
+    Contract.columns # if running just this test.
+
+    company = Company.new
+    assert_queries(0) do
+      company.contract_ids
+    end
+
+    assert_equal [], company.contract_ids
+  end
+
+  def test_set_ids_for_association_on_new_record_applies_association_correctly
+    contract_a = Contract.create!
+    contract_b = Contract.create!
+    Contract.create! # another contract
+    company = Company.new(:name => "Some Company")
+
+    company.contract_ids = [contract_a.id, contract_b.id]
+    assert_equal [contract_a.id, contract_b.id], company.contract_ids
+    assert_equal [contract_a, contract_b], company.contracts
+
+    company.save!
+    assert_equal company, contract_a.reload.company
+    assert_equal company, contract_b.reload.company
+  end
+
   def test_get_ids_ignores_include_option
     assert_equal [readers(:michael_welcome).id], posts(:welcome).readers_with_person_ids
   end
@@ -1503,6 +1530,14 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
   def test_has_many_custom_primary_key
     david = authors(:david)
     assert_equal david.essays, Essay.find_all_by_writer_id("David")
+  end
+
+  def test_has_many_assignment_with_custom_primary_key
+    david = people(:david)
+
+    assert_equal ["A Modest Proposal"], david.essays.map(&:name)
+    david.essays = [Essay.create!(:name => "Remote Work" )]
+    assert_equal ["Remote Work"], david.essays.map(&:name)
   end
 
   def test_blank_custom_primary_key_on_new_record_should_not_run_queries

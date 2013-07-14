@@ -1,5 +1,55 @@
 ## unreleased ##
 
+*   Do not shallow the original exception in `exec_cache` on PostgreSQL adapter.
+
+    Fixes #11260.
+
+    *Rafael Mendonça França*
+
+*   Fix `ActiveRecord::Store` incorrectly tracking changes of its attributes.
+    Fixes #10373.
+
+    *Janko Marohnić*
+
+*   Fix a bug that prevented the use of the default STI inheritance column
+    (ActiveRecord::Base.inheritance_column = 'some_column'.)
+
+    *chapmajs + Takehiro Adachi*
+
+*   Fix mysql2 adapter raises the correct exception when executing a query on a
+    closed connection.
+
+    *Yves Senn*
+
+*   Fixes bug where `Company.new.contract_ids` would incorrectly load
+    all non-associated contracts.
+
+    Example:
+
+        company = Company.new # Company has many :contracts
+
+        # before
+        company.contract_ids # => SELECT ... WHERE `contracts`.`company_id` IS NULL
+
+        # after
+        company.contract_ids # => []
+
+    *Jared Armstrong*
+
+*   Fix the `:primary_key` option for `has_many` associations.
+    Fixes #10693.
+
+    *Yves Senn*
+
+*   fixes bug introduced by #3329.  Now, when autosaving associations,
+    deletions happen before inserts and saves.  This prevents a 'duplicate
+    unique value' database error that would occur if a record being created had
+    the same value on a unique indexed field as that of a record being destroyed.
+
+    Backport of #10417
+
+    *Johnny Holton*
+
 *   Fix that under some conditions, Active Record could produce invalid SQL of the sort:
     "SELECT DISTINCT DISTINCT".
 

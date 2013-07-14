@@ -1,5 +1,49 @@
 ## unreleased ##
 
+*   Merge `:action` from routing scope and assign endpoint if both `:controller`
+    and `:action` are present. The endpoint assignment only occurs if there is
+    no `:to` present in the options hash so should only affect routes using the
+    shorthand syntax (i.e. endpoint is inferred from the the path).
+
+    Fixes #9856
+
+    *Yves Senn*, *Andrew White*
+
+*   Always escape the result of `link_to_unless` method.
+
+    Before:
+
+        link_to_unless(true, '<b>Showing</b>', 'github.com')
+        # => "<b>Showing</b>"
+
+    After:
+
+        link_to_unless(true, '<b>Showing</b>', 'github.com')
+        # => "&lt;b&gt;Showing&lt;/b&gt;"
+
+    *dtaniwaki*
+
+*   Use a case insensitive URI Regexp for #asset_path.
+
+    This fix a problem where the same asset path using different case are generating
+    different URIs.
+
+    Before:
+
+        image_tag("HTTP://google.com")
+        # => "<img alt=\"Google\" src=\"/assets/HTTP://google.com\" />"
+        image_tag("http://google.com")
+        # => "<img alt=\"Google\" src=\"http://google.com\" />"
+
+    After:
+
+        image_tag("HTTP://google.com")
+        # => "<img alt=\"Google\" src=\"HTTP://google.com\" />"
+        image_tag("http://google.com")
+        # => "<img alt=\"Google\" src=\"http://google.com\" />"
+
+    *David Celis + Rafael Mendonça França*
+
 *   Fix explicit names on multiple file fields. If a file field tag has
     the multiple option, it is turned into an array field (appending `[]`),
     but if an explicit name is passed to `file_field` the `[]` is not
