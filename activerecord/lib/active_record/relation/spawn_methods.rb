@@ -32,11 +32,12 @@ module ActiveRecord
       merged_wheres = @where_values + r.where_values
 
       unless @where_values.empty?
-        # Remove duplicates, last one wins.
+        # Remove duplicate ARel attributes. Last one wins.
         seen = Hash.new { |h,table| h[table] = {} }
         merged_wheres = merged_wheres.reverse.reject { |w|
           nuke = false
-          if w.respond_to?(:operator) && w.operator == :==
+          if w.respond_to?(:operator) && w.operator == :== &&
+            w.left.respond_to?(:relation)
             name              = w.left.name
             table             = w.left.relation.name
             nuke              = seen[table][name]
@@ -151,7 +152,7 @@ module ActiveRecord
         values = other.joins_values
         return if values.blank?
 
-        if other.klass == relation.klass
+        if other.klass >= relation.klass
           relation.joins_values += values
         else
           joins_dependency, rest = values.partition do |join|

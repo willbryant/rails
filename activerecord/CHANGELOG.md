@@ -1,4 +1,60 @@
-## unreleased ##
+## Rails 3.2.18 (May 6, 2014) ##
+
+* No changes.
+
+
+## Rails 3.2.17 (Feb 18, 2014) ##
+
+* No changes.
+
+
+## Rails 3.2.16 (Dec 3, 2013) ##
+
+* No changes.
+
+
+## Rails 3.2.15 (Oct 16, 2013) ##
+
+*   When calling the method .find_or_initialize_by_* from a collection_proxy
+    it should set the inverse_of relation even when the entry was found on the db.
+
+    *arthurnn*
+
+*   Callbacks on has_many should access the in memory parent if a inverse_of is set.
+
+    *arthurnn*
+
+*   Fix `FinderMethods#last` unscoped primary key.
+
+    Fixes #11917.
+
+    *Eugene Kalenkovich*
+
+*   Load fixtures from linked folders.
+
+    *Kassio Borges*
+
+*   When using optimistic locking, `update` was not passing the column to `quote_value`
+    to allow the connection adapter to properly determine how to quote the value. This was
+    affecting certain databases that use specific colmn types.
+
+    Fixes: #6763
+
+    *Alfred Wong*
+
+
+## Rails 3.2.14 (Jul 22, 2013) ##
+
+*   Fix merge error when Equality LHS is non-attribute.
+    Backport of #7380.
+
+    *Karmes Alexander*
+
+*   Do not re-create destroyed association when saving the parent object.
+
+    Fixes #11450.
+
+    *Paul Nikitochkin*
 
 *   Do not shallow the original exception in `exec_cache` on PostgreSQL adapter.
 

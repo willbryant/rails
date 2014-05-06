@@ -1,4 +1,68 @@
-## unreleased ##
+## Rails 3.2.18 (May 6, 2014) ##
+
+*   Only accept actions without File::SEPARATOR in the name.
+
+    This will avoid directory traversal in implicit render.
+
+    Fixes: CVE-2014-0130
+
+    *Rafael Mendonça França*
+
+
+## Rails 3.2.17 (Feb 18, 2014) ##
+
+*   Use the reference for the mime type to get the format
+
+    Fixes: CVE-2014-0082
+
+*   Escape format, negative_format and units options of number helpers
+
+    Fixes: CVE-2014-0081
+
+
+## Rails 3.2.16 (Dec 12, 2013) ##
+
+*   Deep Munge the parameters for GET and POST Fixes CVE-2013-6417
+
+*   Stop using i18n's built in HTML error handling.  Fixes: CVE-2013-4491
+
+*   Escape the unit value provided to number_to_currency Fixes CVE-2013-6415
+
+*   Only use valid mime type symbols as cache keys CVE-2013-6414
+
+## Rails 3.2.15 (Oct 16, 2013) ##
+
+*   Fix `ActionDispatch::RemoteIp::GetIp#calculate_ip` to only check for spoofing
+    attacks if both `HTTP_CLIENT_IP` and `HTTP_X_FORWARDED_FOR` are set.
+
+    Fixes #12410
+    Backports #10844
+
+    *Tamir Duberstein*
+
+*   Fix the assert_recognizes test method so that it works when there are
+    constraints on the querystring.
+
+    Issue/Pull Request #9368
+    Backport #5219
+
+    *Brian Hahn*
+
+*   Fix to render partial by context(#11605).
+
+    *Kassio Borges*
+
+*   Fix `ActionDispatch::Assertions::ResponseAssertions#assert_redirected_to`
+    does not show user-supplied message.
+
+    Issue: when `assert_redirected_to` fails due to the response redirect not
+    matching the expected redirect the user-supplied message (second parameter)
+    is not shown. This message is only shown if the response is not a redirect.
+
+    *Alexey Chernenkov*
+
+
+## Rails 3.2.14 (Jul 22, 2013) ##
 
 *   Merge `:action` from routing scope and assign endpoint if both `:controller`
     and `:action` are present. The endpoint assignment only occurs if there is

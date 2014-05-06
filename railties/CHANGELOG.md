@@ -1,4 +1,24 @@
-## unreleased ##
+## Rails 3.2.18 (May 6, 2014) ##
+
+* No changes.
+
+
+## Rails 3.2.17 (Feb 18, 2014) ##
+
+* No changes.
+
+
+## Rails 3.2.16 (Dec 3, 2013) ##
+
+* No changes.
+
+
+## Rails 3.2.15 (Oct 16, 2013) ##
+
+* No changes.
+
+
+## Rails 3.2.14 (Jul 22, 2013) ##
 
 *   Fix bugs that crashed `rake test:benchmark`, `rails profiler` and
     `rails benchmarker`.

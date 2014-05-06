@@ -72,6 +72,16 @@ module ActiveSupport
       @logger.send(method, *args)
     end
 
+    if RUBY_VERSION < '1.9'
+      def respond_to?(*args)
+        super || @logger.respond_to?(*args)
+      end
+    else
+      def respond_to_missing?(*args)
+        @logger.respond_to? *args
+      end
+    end
+
     private
       def tags_text
         tags = current_tags
