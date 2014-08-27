@@ -61,7 +61,8 @@ module ActiveRecord::Associations::Builder
 
       model.after_create   "belongs_to_counter_cache_after_create_for_#{name}"
       model.before_destroy "belongs_to_counter_cache_before_destroy_for_#{name}"
-      model.after_update   "belongs_to_counter_cache_after_update_for_#{name}"
+      # TODO: disabled to work around issue #10865, have proposed a better solution to rails-core
+      # model.after_update   "belongs_to_counter_cache_after_update_for_#{name}"
       klass.attr_readonly cache_column if klass && klass.respond_to?(:attr_readonly)
     end
 
