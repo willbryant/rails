@@ -81,9 +81,10 @@ module ActiveRecord::Associations::Builder
         record.belongs_to_counter_cache_before_destroy(reflection)
       }
 
-      model.after_update lambda { |record|
-        record.belongs_to_counter_cache_after_update(reflection)
-      }
+      # TODO: disabled to work around issue #10865, have proposed a better solution to rails-core
+      # model.after_update lambda { |record|
+      #   record.belongs_to_counter_cache_after_update(reflection)
+      # }
 
       klass = reflection.class_name.safe_constantize
       klass.attr_readonly cache_column if klass && klass.respond_to?(:attr_readonly)
