@@ -1,3 +1,21 @@
+*   Schema loading rake tasks (like `db:schema:load` and `db:setup`) maintain
+    the database connection to the current environment.
+
+    Fixes #16757.
+
+    *Joshua Cody*, *Yves Senn*
+
+*   `db:purge` with MySQL respects `Rails.env`.
+
+    *Yves Senn*
+
+*   Fixed automatic maintaining test schema to properly handle sql structure
+    schema format.
+
+    Fixes #15394.
+
+    *Wojciech Wnętrzak*
+
 *   Fixed a regression where whitespaces were stripped from DISTINCT queries in
     PostgreSQL.
 
