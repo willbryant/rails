@@ -26,7 +26,7 @@ require 'models/college'
 require 'models/student'
 require 'models/reference'
 require 'models/job'
-
+require 'models/tyre'
 
 class HasManyAssociationsTestForReorderWithJoinDependency < ActiveRecord::TestCase
   fixtures :authors, :posts, :comments
@@ -335,6 +335,22 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
   def test_dynamic_find_should_respect_association_order
     assert_equal companies(:another_first_firm_client), companies(:first_firm).clients_sorted_desc.where("type = 'Client'").first
     assert_equal companies(:another_first_firm_client), companies(:first_firm).clients_sorted_desc.find_by_type('Client')
+  end
+
+  def test_taking
+    posts(:other_by_bob).destroy
+    assert_equal posts(:misc_by_bob), authors(:bob).posts.take
+    assert_equal posts(:misc_by_bob), authors(:bob).posts.take!
+    authors(:bob).posts.to_a
+    assert_equal posts(:misc_by_bob), authors(:bob).posts.take
+    assert_equal posts(:misc_by_bob), authors(:bob).posts.take!
+  end
+
+  def test_taking_not_found
+    authors(:bob).posts.delete_all
+    assert_raise(ActiveRecord::RecordNotFound) { authors(:bob).posts.take! }
+    authors(:bob).posts.to_a
+    assert_raise(ActiveRecord::RecordNotFound) { authors(:bob).posts.take! }
   end
 
   def test_cant_save_has_many_readonly_association
@@ -1854,5 +1870,18 @@ class HasManyAssociationsTest < ActiveRecord::TestCase
         end
       end
     end
+  end
+
+  test 'associations autosaves when object is already persited' do
+    bulb = Bulb.create!
+    tyre = Tyre.create!
+
+    car = Car.create! do |c|
+      c.bulbs << bulb
+      c.tyres << tyre
+    end
+
+    assert_equal 1, car.bulbs.count
+    assert_equal 1, car.tyres.count
   end
 end
